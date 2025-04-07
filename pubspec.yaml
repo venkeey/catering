@@ -1,0 +1,45 @@
+name: catererer
+description: A Flutter app for event catering cost optimization and quote generation.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  # State Management
+  provider: ^6.0.5
+  # Database
+  sqflite: ^2.3.0
+  path: ^1.8.3
+  # UI Components
+  flutter_form_builder: ^10.0.1
+  form_builder_validators: ^11.1.2
+  # PDF Generation
+  pdf: ^3.10.4
+  path_provider: ^2.1.1
+  share_plus: ^10.1.4
+  open_file: ^3.3.2
+  # Charts
+  fl_chart: ^0.70.2
+  # Utils
+  intl: ^0.19.0
+  uuid: ^4.2.1
+  shared_preferences: ^2.2.2
+  mysql_client: ^0.0.27
+  # mysql1: ^0.20.0  # Commenting out the old package
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  test: ^1.25.15
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/ 
