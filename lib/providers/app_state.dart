@@ -616,7 +616,12 @@ class AppState extends ChangeNotifier {
   }
 
   Dish? getDishForQuoteItem(QuoteItem item) {
-    return _dishes.firstWhere((d) => d.id == item.dishId);
+    try {
+      return _dishes.firstWhere((d) => d.id == item.dishId);
+    } catch (e) {
+      // No dish found with the given ID
+      return null;
+    }
   }
 
   Future<void> recalculateQuoteTotals(String quoteId) async {

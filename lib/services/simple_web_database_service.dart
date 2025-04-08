@@ -317,6 +317,21 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
         if (data['status'] == 'success') {
           final List<dynamic> eventsData = data['data'];
           return eventsData.map((eventData) {
+            // Convert string values to appropriate types
+            int? parseIntSafely(dynamic value) {
+              if (value == null) return null;
+              if (value is int) return value;
+              if (value is String) {
+                try {
+                  return int.parse(value);
+                } catch (e) {
+                  debugPrint('Error parsing int: $value, $e');
+                  return 0;
+                }
+              }
+              return 0;
+            }
+            
             return Event.fromMap({
               'id': eventData['event_id'].toString(),
               'clientId': eventData['client_id'].toString(),
@@ -324,13 +339,13 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
               'eventDate': eventData['event_date'],
               'venueAddress': eventData['venue_address'],
               'eventType': eventData['event_type'],
-              'totalGuestCount': eventData['total_guest_count'],
-              'guestsMale': eventData['guests_male'],
-              'guestsFemale': eventData['guests_female'],
-              'guestsElderly': eventData['guests_elderly'],
-              'guestsYouth': eventData['guests_youth'],
-              'guestsChild': eventData['guests_child'],
-              'status': eventData['status'],
+              'totalGuestCount': parseIntSafely(eventData['total_guest_count']),
+              'guestsMale': parseIntSafely(eventData['guests_male']) ?? 0,
+              'guestsFemale': parseIntSafely(eventData['guests_female']) ?? 0,
+              'guestsElderly': parseIntSafely(eventData['guests_elderly']) ?? 0,
+              'guestsYouth': parseIntSafely(eventData['guests_youth']) ?? 0,
+              'guestsChild': parseIntSafely(eventData['guests_child']) ?? 0,
+              'status': eventData['status'] ?? 'Planning',
               'notes': eventData['notes'],
               'createdAt': eventData['created_at'],
             });
@@ -362,7 +377,51 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
         final data = json.decode(response.body);
         if (data['status'] == 'success') {
           final List<dynamic> dishesData = data['data'];
-          return dishesData.map((dishData) => Dish.fromMap(dishData)).toList();
+          return dishesData.map((dishData) {
+            // Helper functions for safe type conversion
+            double parseDoubleSafely(dynamic value) {
+              if (value == null) return 0.0;
+              if (value is double) return value;
+              if (value is int) return value.toDouble();
+              if (value is String) {
+                try {
+                  return double.parse(value);
+                } catch (e) {
+                  debugPrint('Error parsing double: $value, $e');
+                  return 0.0;
+                }
+              }
+              return 0.0;
+            }
+            
+            bool parseBoolSafely(dynamic value) {
+              if (value == null) return false;
+              if (value is bool) return value;
+              if (value is int) return value == 1;
+              if (value is String) {
+                return value.toLowerCase() == 'true' || value == '1';
+              }
+              return false;
+            }
+            
+            return Dish(
+              id: dishData['dish_id']?.toString(),
+              name: dishData['name'] ?? '',
+              categoryId: dishData['category_id'].toString(),
+              category: dishData['category'],
+              basePrice: parseDoubleSafely(dishData['base_price']),
+              baseFoodCost: parseDoubleSafely(dishData['base_food_cost']),
+              standardPortionSize: parseDoubleSafely(dishData['standard_portion_size']),
+              description: dishData['description'],
+              imageUrl: dishData['image_url'],
+              dietaryTags: dishData['dietary_tags'],
+              itemType: dishData['item_type'] ?? 'Standard',
+              isActive: parseBoolSafely(dishData['is_active']),
+              ingredients: dishData['ingredients'],
+              createdAt: dishData['created_at'] != null ? 
+                  DateTime.parse(dishData['created_at']) : DateTime.now(),
+            );
+          }).toList();
         }
       }
       return [];
@@ -385,7 +444,60 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
         final data = json.decode(response.body);
         if (data['status'] == 'success') {
           final List<dynamic> quotesData = data['data'];
-          return quotesData.map((quoteData) => Quote.fromMap(quoteData)).toList();
+          return quotesData.map((quoteData) {
+            // Helper functions for safe type conversion
+            int parseIntSafely(dynamic value) {
+              if (value == null) return 0;
+              if (value is int) return value;
+              if (value is String) {
+                try {
+                  return int.parse(value);
+                } catch (e) {
+                  debugPrint('Error parsing int: $value, $e');
+                  return 0;
+                }
+              }
+              return 0;
+            }
+            
+            double parseDoubleSafely(dynamic value) {
+              if (value == null) return 0.0;
+              if (value is double) return value;
+              if (value is int) return value.toDouble();
+              if (value is String) {
+                try {
+                  return double.parse(value);
+                } catch (e) {
+                  debugPrint('Error parsing double: $value, $e');
+                  return 0.0;
+                }
+              }
+              return 0.0;
+            }
+            
+            return Quote(
+              id: quoteData['quote_id']?.toString(),
+              eventId: quoteData['event_id']?.toString(),
+              clientId: quoteData['client_id']?.toString() ?? '',
+              quoteDate: quoteData['quote_date'] != null ? 
+                  DateTime.parse(quoteData['quote_date']) : DateTime.now(),
+              totalGuestCount: parseIntSafely(quoteData['total_guest_count']),
+              guestsMale: parseIntSafely(quoteData['guests_male']),
+              guestsFemale: parseIntSafely(quoteData['guests_female']),
+              guestsElderly: parseIntSafely(quoteData['guests_elderly']),
+              guestsYouth: parseIntSafely(quoteData['guests_youth']),
+              guestsChild: parseIntSafely(quoteData['guests_child']),
+              calculationMethod: quoteData['calculation_method'] ?? 'Simple',
+              overheadPercentage: parseDoubleSafely(quoteData['overhead_percentage']),
+              calculatedTotalFoodCost: parseDoubleSafely(quoteData['calculated_total_food_cost']),
+              calculatedOverheadCost: parseDoubleSafely(quoteData['calculated_overhead_cost']),
+              grandTotal: parseDoubleSafely(quoteData['grand_total']),
+              notes: quoteData['notes'],
+              termsAndConditions: quoteData['terms_and_conditions'],
+              status: quoteData['status'] ?? 'Draft',
+              items: [], // Items will be loaded separately
+            );
+          }).toList();
         }
       }
       return [];
@@ -408,7 +520,49 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
         final data = json.decode(response.body);
         if (data['status'] == 'success') {
           final List<dynamic> quoteItemsData = data['data'];
-          return quoteItemsData.map((quoteItemData) => QuoteItem.fromMap(quoteItemData)).toList();
+          return quoteItemsData.map((quoteItemData) {
+            // Helper functions for safe type conversion
+            double parseDoubleSafely(dynamic value) {
+              if (value == null) return 0.0;
+              if (value is double) return value;
+              if (value is int) return value.toDouble();
+              if (value is String) {
+                try {
+                  return double.parse(value);
+                } catch (e) {
+                  debugPrint('Error parsing double: $value, $e');
+                  return 0.0;
+                }
+              }
+              return 0.0;
+            }
+            
+            int parseIntSafely(dynamic value) {
+              if (value == null) return 0;
+              if (value is int) return value;
+              if (value is String) {
+                try {
+                  return int.parse(value);
+                } catch (e) {
+                  debugPrint('Error parsing int: $value, $e');
+                  return 0;
+                }
+              }
+              return 0;
+            }
+            
+            return QuoteItem(
+              id: quoteItemData['item_id']?.toString(),
+              quoteId: quoteItemData['quote_id']?.toString() ?? '',
+              dishId: quoteItemData['dish_id']?.toString() ?? '',
+              quotedPortionSizeGrams: parseDoubleSafely(quoteItemData['quoted_portion_size_grams']),
+              quotedBaseFoodCostPerServing: parseDoubleSafely(quoteItemData['quoted_base_food_cost_per_serving']),
+              percentageTakeRate: parseDoubleSafely(quoteItemData['percentage_take_rate']),
+              estimatedServings: parseIntSafely(quoteItemData['estimated_servings']),
+              estimatedTotalWeightGrams: parseDoubleSafely(quoteItemData['estimated_total_weight_grams']),
+              estimatedItemFoodCost: parseDoubleSafely(quoteItemData['estimated_item_food_cost']),
+            );
+          }).toList();
         }
       }
       return [];
@@ -437,7 +591,49 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
         final data = json.decode(response.body);
         if (data['status'] == 'success') {
           final List<dynamic> quoteItemsData = data['data'];
-          return quoteItemsData.map((quoteItemData) => QuoteItem.fromMap(quoteItemData)).toList();
+          return quoteItemsData.map((quoteItemData) {
+            // Helper functions for safe type conversion
+            double parseDoubleSafely(dynamic value) {
+              if (value == null) return 0.0;
+              if (value is double) return value;
+              if (value is int) return value.toDouble();
+              if (value is String) {
+                try {
+                  return double.parse(value);
+                } catch (e) {
+                  debugPrint('Error parsing double: $value, $e');
+                  return 0.0;
+                }
+              }
+              return 0.0;
+            }
+            
+            int parseIntSafely(dynamic value) {
+              if (value == null) return 0;
+              if (value is int) return value;
+              if (value is String) {
+                try {
+                  return int.parse(value);
+                } catch (e) {
+                  debugPrint('Error parsing int: $value, $e');
+                  return 0;
+                }
+              }
+              return 0;
+            }
+            
+            return QuoteItem(
+              id: quoteItemData['item_id']?.toString(),
+              quoteId: quoteItemData['quote_id']?.toString() ?? '',
+              dishId: quoteItemData['dish_id']?.toString() ?? '',
+              quotedPortionSizeGrams: parseDoubleSafely(quoteItemData['quoted_portion_size_grams']),
+              quotedBaseFoodCostPerServing: parseDoubleSafely(quoteItemData['quoted_base_food_cost_per_serving']),
+              percentageTakeRate: parseDoubleSafely(quoteItemData['percentage_take_rate']),
+              estimatedServings: parseIntSafely(quoteItemData['estimated_servings']),
+              estimatedTotalWeightGrams: parseDoubleSafely(quoteItemData['estimated_total_weight_grams']),
+              estimatedItemFoodCost: parseDoubleSafely(quoteItemData['estimated_item_food_cost']),
+            );
+          }).toList();
         } else {
           debugPrint('Failed to load quote items: ${data['message']}');
           return [];
@@ -465,7 +661,44 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
         final data = json.decode(response.body);
         if (data['status'] == 'success') {
           final List<dynamic> packagesData = data['data'];
-          return packagesData.map((packageData) => MenuPackage.fromMap(packageData)).toList();
+          return packagesData.map((packageData) {
+            // Helper functions for safe type conversion
+            double parseDoubleSafely(dynamic value) {
+              if (value == null) return 0.0;
+              if (value is double) return value;
+              if (value is int) return value.toDouble();
+              if (value is String) {
+                try {
+                  return double.parse(value);
+                } catch (e) {
+                  debugPrint('Error parsing double: $value, $e');
+                  return 0.0;
+                }
+              }
+              return 0.0;
+            }
+            
+            bool parseBoolSafely(dynamic value) {
+              if (value == null) return false;
+              if (value is bool) return value;
+              if (value is int) return value == 1;
+              if (value is String) {
+                return value.toLowerCase() == 'true' || value == '1';
+              }
+              return false;
+            }
+            
+            return MenuPackage(
+              id: packageData['package_id']?.toString(),
+              name: packageData['name'] ?? '',
+              description: packageData['description'] ?? '',
+              basePrice: parseDoubleSafely(packageData['base_price']),
+              eventType: packageData['event_type'] ?? 'Standard',
+              isActive: parseBoolSafely(packageData['is_active']),
+              createdAt: packageData['created_at'] != null ? 
+                  DateTime.parse(packageData['created_at']) : DateTime.now(),
+            );
+          }).toList();
         }
       }
       return [];
@@ -591,7 +824,35 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
         final data = json.decode(response.body);
         if (data['status'] == 'success') {
           final List<dynamic> purchaseOrdersData = data['data'];
-          return List<Map<String, dynamic>>.from(purchaseOrdersData);
+          
+          // Process each purchase order to ensure correct types
+          return purchaseOrdersData.map<Map<String, dynamic>>((item) {
+            // Helper function for safe type conversion
+            double parseDoubleSafely(dynamic value) {
+              if (value == null) return 0.0;
+              if (value is double) return value;
+              if (value is int) return value.toDouble();
+              if (value is String) {
+                try {
+                  return double.parse(value);
+                } catch (e) {
+                  debugPrint('Error parsing double: $value, $e');
+                  return 0.0;
+                }
+              }
+              return 0.0;
+            }
+            
+            // Create a new map with properly converted values
+            final Map<String, dynamic> processedItem = Map<String, dynamic>.from(item);
+            
+            // Convert string values to appropriate types
+            if (processedItem.containsKey('total_amount')) {
+              processedItem['total_amount'] = parseDoubleSafely(processedItem['total_amount']);
+            }
+            
+            return processedItem;
+          }).toList();
         }
       }
       return [];
