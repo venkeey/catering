@@ -14,59 +14,44 @@ import '../models/inventory_item.dart';
 import '../models/supplier.dart';
 import '../models/purchase_order.dart';
 import '../models/purchase_order_item.dart';
-import '../utils/database_helper.dart';
+import 'web_base_database_service.dart';
 import 'database_service_interface.dart';
 import 'web_database_service_interface.dart';
 
 class WebDatabaseService implements WebDatabaseServiceInterface {
   static final WebDatabaseService _instance = WebDatabaseService._internal();
   factory WebDatabaseService() => _instance;
+  
+  // Use WebBaseDatabaseService for web-specific database handling
+  final WebBaseDatabaseService _baseService = WebBaseDatabaseService();
+  
   WebDatabaseService._internal();
 
-  bool _isConnected = false;
-  
-  // API settings
-  String _apiUrl = 'http://localhost:8080/api';
-  
-  // Database connection settings (stored for UI display)
-  String _host = 'localhost';
-  int _port = 3306;
-  String _user = 'flutteruser';
-  String _password = 'flutterpassword';
-  String _db = 'catererer_db';
-
-  // Getters
-  bool get isConnected => _isConnected;
-  String get host => _host;
-  int get port => _port;
-  String get user => _user;
-  String get password => _password;
-  String get db => _db;
-  String get apiUrl => _apiUrl;
+  // Getters that delegate to the base service
+  bool get isConnected => _baseService.isConnected;
+  String get host => _baseService.host;
+  int get port => _baseService.port;
+  String get user => _baseService.user;
+  String get password => _baseService.password;
+  String get db => _baseService.db;
+  String get apiUrl => _baseService.apiUrl;
 
   // Initialize connection settings from SharedPreferences
   Future<void> initialize() async {
-    final prefs = await SharedPreferences.getInstance();
-    _host = prefs.getString('db_host') ?? 'localhost';
-    _port = prefs.getInt('db_port') ?? 3306;
-    _user = prefs.getString('db_user') ?? 'flutteruser';
-    _password = prefs.getString('db_password') ?? 'flutterpassword';
-    _db = prefs.getString('db_name') ?? 'catererer_db';
-    _apiUrl = prefs.getString('api_url') ?? 'http://localhost:8080/api';
+    await _baseService.initialize();
     
-    // Test connection
-    await testConnection();
+    // Automatically connect to the database
+    final success = await connect();
+    if (!success) {
+      // If connection fails, try again with default settings
+      await saveApiUrl('http://localhost:8080/api');
+      await connect();
+    }
   }
   
   // Load connection settings from SharedPreferences
   Future<void> loadConnectionSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    _host = prefs.getString('db_host') ?? 'localhost';
-    _port = prefs.getInt('db_port') ?? 3306;
-    _user = prefs.getString('db_user') ?? 'flutteruser';
-    _password = prefs.getString('db_password') ?? 'flutterpassword';
-    _db = prefs.getString('db_name') ?? 'catererer_db';
-    _apiUrl = prefs.getString('api_url') ?? 'http://localhost:8080/api';
+    await _baseService.loadConnectionSettings();
   }
   
   // Save connection settings to SharedPreferences
@@ -79,41 +64,37 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
     required String db,
     String? apiUrl,
   }) async {
-    _host = host;
-    _port = port;
-    _user = user;
-    _password = password;
-    _db = db;
-    if (apiUrl != null) {
-      _apiUrl = apiUrl;
-    }
-    
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('db_host', host);
-    await prefs.setInt('db_port', port);
-    await prefs.setString('db_user', user);
-    await prefs.setString('db_password', password);
-    await prefs.setString('db_name', db);
-    await prefs.setString('api_url', _apiUrl);
+    await _baseService.saveConnectionSettings(
+      host: host,
+      port: port,
+      user: user,
+      password: password,
+      db: db,
+      apiUrl: apiUrl,
+    );
   }
   
   // Save API URL to SharedPreferences
   @override
   Future<void> saveApiUrl(String apiUrl) async {
-    _apiUrl = apiUrl;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('api_url', apiUrl);
+    await _baseService.loadConnectionSettings(); // Reload settings
   }
 
   // Connect to database via API
   Future<bool> connect() async {
     try {
+      debugPrint('Connecting to database via API...');
+      // In web mode, we don't try to connect directly to MySQL
+      // We only check if the API is accessible
       final success = await testConnection();
-      _isConnected = success;
+      _baseService.setConnected(success);
+      debugPrint('API connection ${success ? 'successful' : 'failed'}');
       return success;
     } catch (e) {
       debugPrint('Error connecting to database via API: $e');
-      _isConnected = false;
+      _baseService.setConnected(false);
       return false;
     }
   }
@@ -122,27 +103,37 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<bool> testConnection() async {
     try {
       debugPrint('Testing database connection via API...');
-      final response = await http.get(Uri.parse('$_apiUrl/db-test'));
+      
+      // Set a timeout for the request
+      final response = await http.get(
+        Uri.parse('${_baseService.apiUrl}/db-test')
+      ).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint('API connection test timed out');
+          return http.Response('{"status":"error","message":"Connection timed out"}', 408);
+        }
+      );
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data['status'] == 'success') {
           debugPrint('API connection test successful');
-          _isConnected = true;
+          _baseService.setConnected(true);
           return true;
         } else {
           debugPrint('API connection test failed: ${data['message']}');
-          _isConnected = false;
+          _baseService.setConnected(false);
           return false;
         }
       } else {
         debugPrint('API connection test failed with status code: ${response.statusCode}');
-        _isConnected = false;
+        _baseService.setConnected(false);
         return false;
       }
     } catch (e) {
       debugPrint('Error testing API connection: $e');
-      _isConnected = false;
+      _baseService.setConnected(false);
       return false;
     }
   }
@@ -159,7 +150,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
     // In web mode, we're just testing if the API is accessible
     // The actual database connection is handled by the API server
     try {
-      final url = apiUrl ?? _apiUrl;
+      final url = apiUrl ?? _baseService.apiUrl;
       final response = await http.get(Uri.parse('$url/db-test'));
       
       if (response.statusCode == 200) {
@@ -175,7 +166,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   // Disconnect (no-op in web mode)
   Future<void> disconnect() async {
-    _isConnected = false;
+    _baseService.setConnected(false);
   }
 
   // Update connection settings
@@ -188,7 +179,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
     String? apiUrl,
   }) async {
     try {
-      final url = apiUrl ?? _apiUrl;
+      final url = apiUrl ?? _baseService.apiUrl;
       
       // Test the connection
       final success = await testConnectionWithParams(
@@ -205,23 +196,14 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
       }
 
       // If test successful, update the settings
-      _host = host;
-      _port = port;
-      _user = userName;
-      _password = password;
-      _db = db;
-      if (apiUrl != null) {
-        _apiUrl = apiUrl;
-      }
-
-      // Save to SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('db_host', host);
-      await prefs.setInt('db_port', port);
-      await prefs.setString('db_user', userName);
-      await prefs.setString('db_password', password);
-      await prefs.setString('db_name', db);
-      await prefs.setString('api_url', _apiUrl);
+      await _baseService.saveConnectionSettings(
+        host: host,
+        port: port,
+        user: userName,
+        password: password,
+        db: db,
+        apiUrl: apiUrl,
+      );
 
       return true;
     } catch (e) {
@@ -232,8 +214,17 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   // Client-related methods
   Future<List<Client>> getClients() async {
+    if (!_baseService.isConnected) {
+      debugPrint('Database not connected, returning empty clients list');
+      return [];
+    }
+    
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/clients'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/clients'))
+        .timeout(const Duration(seconds: 5), onTimeout: () {
+          debugPrint('Request for clients timed out');
+          return http.Response('{"status":"error","message":"Connection timed out"}', 408);
+        });
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -255,20 +246,22 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
             });
           }).toList();
         } else {
-          throw Exception(data['message'] ?? 'Failed to load clients');
+          debugPrint('Failed to load clients: ${data['message']}');
+          return [];
         }
       } else {
-        throw Exception('Failed to load clients: ${response.statusCode}');
+        debugPrint('Failed to load clients: ${response.statusCode}');
+        return [];
       }
     } catch (e) {
       debugPrint('Error getting clients: $e');
-      rethrow;
+      return [];
     }
   }
 
   Future<Client?> getClient(String id) async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/clients/$id'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/clients/$id'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -302,7 +295,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<String> addClient(Client client) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/clients'),
+        Uri.parse('${_baseService.apiUrl}/clients'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'client_name': client.clientName,
@@ -332,7 +325,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<void> updateClient(Client client) async {
     try {
       final response = await http.put(
-        Uri.parse('$_apiUrl/clients/${client.id}'),
+        Uri.parse('${_baseService.apiUrl}/clients/${client.id}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'client_name': client.clientName,
@@ -358,7 +351,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<void> deleteClient(String id) async {
     try {
-      final response = await http.delete(Uri.parse('$_apiUrl/clients/$id'));
+      final response = await http.delete(Uri.parse('${_baseService.apiUrl}/clients/$id'));
       if (response.statusCode != 200) {
         throw Exception('Failed to delete client: ${response.statusCode}');
       }
@@ -370,8 +363,17 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   // Event-related methods
   Future<List<Event>> getEvents() async {
+    if (!_baseService.isConnected) {
+      debugPrint('Database not connected, returning empty events list');
+      return [];
+    }
+    
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/events'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/events'))
+        .timeout(const Duration(seconds: 5), onTimeout: () {
+          debugPrint('Request for events timed out');
+          return http.Response('{"status":"error","message":"Connection timed out"}', 408);
+        });
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -397,20 +399,22 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
             });
           }).toList();
         } else {
-          throw Exception(data['message'] ?? 'Failed to load events');
+          debugPrint('Failed to load events: ${data['message']}');
+          return [];
         }
       } else {
-        throw Exception('Failed to load events: ${response.statusCode}');
+        debugPrint('Failed to load events: ${response.statusCode}');
+        return [];
       }
     } catch (e) {
       debugPrint('Error getting events: $e');
-      rethrow;
+      return [];
     }
   }
 
   Future<Event?> getEvent(String id) async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/events/$id'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/events/$id'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -448,7 +452,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<String> addEvent(Event event) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/events'),
+        Uri.parse('${_baseService.apiUrl}/events'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'client_id': event.clientId,
@@ -482,7 +486,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<void> updateEvent(Event event) async {
     try {
       final response = await http.put(
-        Uri.parse('$_apiUrl/events/${event.id}'),
+        Uri.parse('${_baseService.apiUrl}/events/${event.id}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'client_id': event.clientId,
@@ -512,7 +516,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<void> deleteEvent(String id) async {
     try {
-      final response = await http.delete(Uri.parse('$_apiUrl/events/$id'));
+      final response = await http.delete(Uri.parse('${_baseService.apiUrl}/events/$id'));
       if (response.statusCode != 200) {
         throw Exception('Failed to delete event: ${response.statusCode}');
       }
@@ -525,7 +529,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   // Dish-related methods
   Future<List<Dish>> getDishes() async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/dishes'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/dishes'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -562,7 +566,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<Dish?> getDish(String id) async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/dishes/$id'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/dishes/$id'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -598,7 +602,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<String> addDish(Dish dish) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/dishes'),
+        Uri.parse('${_baseService.apiUrl}/dishes'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'name': dish.name,
@@ -630,7 +634,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<void> updateDish(Dish dish) async {
     try {
       final response = await http.put(
-        Uri.parse('$_apiUrl/dishes/${dish.id}'),
+        Uri.parse('${_baseService.apiUrl}/dishes/${dish.id}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'name': dish.name,
@@ -658,7 +662,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<void> deleteDish(String id) async {
     try {
-      final response = await http.delete(Uri.parse('$_apiUrl/dishes/$id'));
+      final response = await http.delete(Uri.parse('${_baseService.apiUrl}/dishes/$id'));
       if (response.statusCode != 200) {
         throw Exception('Failed to delete dish: ${response.statusCode}');
       }
@@ -671,7 +675,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   // Quote-related methods
   Future<List<Quote>> getQuotes() async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/quotes'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/quotes'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -721,7 +725,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<Quote?> getQuote(String id) async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/quotes/$id'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/quotes/$id'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -794,7 +798,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
           
           // If no items in response, fetch them separately
           try {
-            final itemsResponse = await http.get(Uri.parse('$_apiUrl/quotes/$id/items'));
+            final itemsResponse = await http.get(Uri.parse('${_baseService.apiUrl}/quotes/$id/items'));
             if (itemsResponse.statusCode == 200) {
               final itemsData = json.decode(itemsResponse.body);
               if (itemsData['status'] == 'success') {
@@ -857,7 +861,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<String> addQuote(Quote quote) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/quotes'),
+        Uri.parse('${_baseService.apiUrl}/quotes'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'client_id': quote.clientId,
@@ -896,7 +900,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<void> updateQuote(Quote quote) async {
     try {
       final response = await http.put(
-        Uri.parse('$_apiUrl/quotes/${quote.id}'),
+        Uri.parse('${_baseService.apiUrl}/quotes/${quote.id}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'client_id': quote.clientId,
@@ -931,7 +935,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<void> deleteQuote(String id) async {
     try {
-      final response = await http.delete(Uri.parse('$_apiUrl/quotes/$id'));
+      final response = await http.delete(Uri.parse('${_baseService.apiUrl}/quotes/$id'));
       if (response.statusCode != 200) {
         throw Exception('Failed to delete quote: ${response.statusCode}');
       }
@@ -944,7 +948,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   // QuoteItem-related methods
   Future<List<QuoteItem>> getQuoteItems() async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/quote-items'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/quote-items'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -977,7 +981,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<List<QuoteItem>> getQuoteItemsForQuote(String quoteId) async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/quotes/$quoteId/items'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/quotes/$quoteId/items'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -1011,7 +1015,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<String> addQuoteItem(QuoteItem item) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/quote-items'),
+        Uri.parse('${_baseService.apiUrl}/quote-items'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'quote_id': item.quoteId,
@@ -1040,7 +1044,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<void> updateQuoteItem(QuoteItem item) async {
     try {
       final response = await http.put(
-        Uri.parse('$_apiUrl/quote-items/${item.id}'),
+        Uri.parse('${_baseService.apiUrl}/quote-items/${item.id}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'quote_id': item.quoteId,
@@ -1065,7 +1069,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<void> deleteQuoteItem(String id) async {
     try {
-      final response = await http.delete(Uri.parse('$_apiUrl/quote-items/$id'));
+      final response = await http.delete(Uri.parse('${_baseService.apiUrl}/quote-items/$id'));
       if (response.statusCode != 200) {
         throw Exception('Failed to delete quote item: ${response.statusCode}');
       }
@@ -1078,7 +1082,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   // MenuPackage-related methods
   Future<List<MenuPackage>> getMenuPackages() async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/menu-packages'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/menu-packages'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -1108,7 +1112,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<MenuPackage?> getMenuPackage(String id) async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/menu-packages/$id'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/menu-packages/$id'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -1137,7 +1141,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<String> addMenuPackage(MenuPackage package) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/menu-packages'),
+        Uri.parse('${_baseService.apiUrl}/menu-packages'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'name': package.name,
@@ -1162,7 +1166,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<void> updateMenuPackage(MenuPackage package) async {
     try {
       final response = await http.put(
-        Uri.parse('$_apiUrl/menu-packages/${package.id}'),
+        Uri.parse('${_baseService.apiUrl}/menu-packages/${package.id}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'name': package.name,
@@ -1183,7 +1187,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<void> deleteMenuPackage(String id) async {
     try {
-      final response = await http.delete(Uri.parse('$_apiUrl/menu-packages/$id'));
+      final response = await http.delete(Uri.parse('${_baseService.apiUrl}/menu-packages/$id'));
       if (response.statusCode != 200) {
         throw Exception('Failed to delete menu package: ${response.statusCode}');
       }
@@ -1196,7 +1200,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   // PackageItem-related methods
   Future<List<PackageItem>> getPackageItems() async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/package-items'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/package-items'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -1224,7 +1228,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<List<PackageItem>> getPackageItemsForPackage(String packageId) async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/menu-packages/$packageId/items'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/menu-packages/$packageId/items'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -1253,7 +1257,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<String> addPackageItem(PackageItem item) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/package-items'),
+        Uri.parse('${_baseService.apiUrl}/package-items'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'package_id': item.packageId,
@@ -1277,7 +1281,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<void> updatePackageItem(PackageItem item) async {
     try {
       final response = await http.put(
-        Uri.parse('$_apiUrl/package-items/${item.id}'),
+        Uri.parse('${_baseService.apiUrl}/package-items/${item.id}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
           'package_id': item.packageId,
@@ -1297,7 +1301,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<void> deletePackageItem(String id) async {
     try {
-      final response = await http.delete(Uri.parse('$_apiUrl/package-items/$id'));
+      final response = await http.delete(Uri.parse('${_baseService.apiUrl}/package-items/$id'));
       if (response.statusCode != 200) {
         throw Exception('Failed to delete package item: ${response.statusCode}');
       }
@@ -1310,7 +1314,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   // Inventory-related methods
   Future<List<Map<String, dynamic>>> getInventoryItems() async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/inventory'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/inventory'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -1331,7 +1335,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<Map<String, dynamic>?> getInventoryItem(String id) async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/inventory/$id'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/inventory/$id'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -1352,7 +1356,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<String> addInventoryItem(Map<String, dynamic> item) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/inventory'),
+        Uri.parse('${_baseService.apiUrl}/inventory'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(item),
       );
@@ -1372,7 +1376,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<void> updateInventoryItem(Map<String, dynamic> item) async {
     try {
       final response = await http.put(
-        Uri.parse('$_apiUrl/inventory/${item['id']}'),
+        Uri.parse('${_baseService.apiUrl}/inventory/${item['id']}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(item),
       );
@@ -1388,7 +1392,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<void> deleteInventoryItem(String id) async {
     try {
-      final response = await http.delete(Uri.parse('$_apiUrl/inventory/$id'));
+      final response = await http.delete(Uri.parse('${_baseService.apiUrl}/inventory/$id'));
       if (response.statusCode != 200) {
         throw Exception('Failed to delete inventory item: ${response.statusCode}');
       }
@@ -1401,7 +1405,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   // Supplier-related methods
   Future<List<Map<String, dynamic>>> getSuppliers() async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/suppliers'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/suppliers'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -1422,7 +1426,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<Map<String, dynamic>?> getSupplier(String id) async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/suppliers/$id'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/suppliers/$id'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -1443,7 +1447,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<String> addSupplier(Map<String, dynamic> supplier) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/suppliers'),
+        Uri.parse('${_baseService.apiUrl}/suppliers'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(supplier),
       );
@@ -1463,7 +1467,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<void> updateSupplier(Map<String, dynamic> supplier) async {
     try {
       final response = await http.put(
-        Uri.parse('$_apiUrl/suppliers/${supplier['id']}'),
+        Uri.parse('${_baseService.apiUrl}/suppliers/${supplier['id']}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(supplier),
       );
@@ -1479,7 +1483,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<void> deleteSupplier(String id) async {
     try {
-      final response = await http.delete(Uri.parse('$_apiUrl/suppliers/$id'));
+      final response = await http.delete(Uri.parse('${_baseService.apiUrl}/suppliers/$id'));
       if (response.statusCode != 200) {
         throw Exception('Failed to delete supplier: ${response.statusCode}');
       }
@@ -1492,7 +1496,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   // PurchaseOrder-related methods
   Future<List<Map<String, dynamic>>> getPurchaseOrders() async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/purchase-orders'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/purchase-orders'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -1513,7 +1517,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<Map<String, dynamic>?> getPurchaseOrder(String id) async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/purchase-orders/$id'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/purchase-orders/$id'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -1534,7 +1538,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<String> addPurchaseOrder(Map<String, dynamic> order) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/purchase-orders'),
+        Uri.parse('${_baseService.apiUrl}/purchase-orders'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(order),
       );
@@ -1554,7 +1558,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<void> updatePurchaseOrder(Map<String, dynamic> order) async {
     try {
       final response = await http.put(
-        Uri.parse('$_apiUrl/purchase-orders/${order['id']}'),
+        Uri.parse('${_baseService.apiUrl}/purchase-orders/${order['id']}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(order),
       );
@@ -1570,7 +1574,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<void> deletePurchaseOrder(String id) async {
     try {
-      final response = await http.delete(Uri.parse('$_apiUrl/purchase-orders/$id'));
+      final response = await http.delete(Uri.parse('${_baseService.apiUrl}/purchase-orders/$id'));
       if (response.statusCode != 200) {
         throw Exception('Failed to delete purchase order: ${response.statusCode}');
       }
@@ -1583,7 +1587,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   // PurchaseOrderItem-related methods
   Future<List<Map<String, dynamic>>> getPurchaseOrderItems(String orderId) async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/purchase-orders/$orderId/items'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/purchase-orders/$orderId/items'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -1604,7 +1608,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<Map<String, dynamic>?> getPurchaseOrderItem(String id) async {
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/purchase-order-items/$id'));
+      final response = await http.get(Uri.parse('${_baseService.apiUrl}/purchase-order-items/$id'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -1625,7 +1629,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<String> addPurchaseOrderItem(Map<String, dynamic> item) async {
     try {
       final response = await http.post(
-        Uri.parse('$_apiUrl/purchase-order-items'),
+        Uri.parse('${_baseService.apiUrl}/purchase-order-items'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(item),
       );
@@ -1645,7 +1649,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
   Future<void> updatePurchaseOrderItem(Map<String, dynamic> item) async {
     try {
       final response = await http.put(
-        Uri.parse('$_apiUrl/purchase-order-items/${item['id']}'),
+        Uri.parse('${_baseService.apiUrl}/purchase-order-items/${item['id']}'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode(item),
       );
@@ -1661,7 +1665,7 @@ class WebDatabaseService implements WebDatabaseServiceInterface {
 
   Future<void> deletePurchaseOrderItem(String id) async {
     try {
-      final response = await http.delete(Uri.parse('$_apiUrl/purchase-order-items/$id'));
+      final response = await http.delete(Uri.parse('${_baseService.apiUrl}/purchase-order-items/$id'));
       if (response.statusCode != 200) {
         throw Exception('Failed to delete purchase order item: ${response.statusCode}');
       }

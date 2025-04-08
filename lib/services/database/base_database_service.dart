@@ -77,21 +77,43 @@ class BaseDatabaseService {
       debugPrint('Port: $_port');
       debugPrint('User: $_user');
       debugPrint('Database: $_db');
+      debugPrint('Is Web Platform: ${kIsWeb}');
       
-      _connection = await MySQLConnection.createConnection(
-        host: _host,
-        port: _port,
-        userName: _user,
-        password: _password,
-        databaseName: _db,
-      );
+      debugPrint('About to create MySQL connection...');
+      try {
+        _connection = await MySQLConnection.createConnection(
+          host: _host,
+          port: _port,
+          userName: _user,
+          password: _password,
+          databaseName: _db,
+        );
+        debugPrint('MySQL connection created successfully');
+      } catch (connectionError) {
+        debugPrint('Error creating MySQL connection: $connectionError');
+        debugPrint('Error type: ${connectionError.runtimeType}');
+        _isConnected = false;
+        return false;
+      }
       
-      await _connection!.connect();
+      debugPrint('About to connect to MySQL database...');
+      try {
+        await _connection!.connect();
+        debugPrint('MySQL connect() method completed successfully');
+      } catch (connectError) {
+        debugPrint('Error in connect() method: $connectError');
+        debugPrint('Error type: ${connectError.runtimeType}');
+        _isConnected = false;
+        return false;
+      }
+      
       _isConnected = true;
       debugPrint('Successfully connected to MySQL database');
       return true;
     } catch (e) {
       debugPrint('Error connecting to MySQL database: $e');
+      debugPrint('Error type: ${e.runtimeType}');
+      debugPrint('Stack trace: ${StackTrace.current}');
       _isConnected = false;
       return false;
     }
@@ -314,21 +336,42 @@ class BaseDatabaseService {
       debugPrint('Port: $_port');
       debugPrint('User: $_user');
       debugPrint('Database: $_db');
+      debugPrint('Is Web Platform: ${kIsWeb}');
       
-      final conn = await MySQLConnection.createConnection(
-        host: _host,
-        port: _port,
-        userName: _user,
-        password: _password,
-        databaseName: _db,
-      );
+      debugPrint('About to create test MySQL connection...');
+      MySQLConnection? conn;
+      try {
+        conn = await MySQLConnection.createConnection(
+          host: _host,
+          port: _port,
+          userName: _user,
+          password: _password,
+          databaseName: _db,
+        );
+        debugPrint('Test MySQL connection created successfully');
+      } catch (connectionError) {
+        debugPrint('Error creating test MySQL connection: $connectionError');
+        debugPrint('Error type: ${connectionError.runtimeType}');
+        return false;
+      }
       
-      await conn.connect();
+      debugPrint('About to connect to test MySQL database...');
+      try {
+        await conn.connect();
+        debugPrint('Test MySQL connect() method completed successfully');
+      } catch (connectError) {
+        debugPrint('Error in test connect() method: $connectError');
+        debugPrint('Error type: ${connectError.runtimeType}');
+        return false;
+      }
+      
       await conn.close();
       debugPrint('Test connection successful');
       return true;
     } catch (e) {
       debugPrint('Error testing MySQL connection: $e');
+      debugPrint('Error type: ${e.runtimeType}');
+      debugPrint('Stack trace: ${StackTrace.current}');
       return false;
     }
   }
@@ -342,26 +385,47 @@ class BaseDatabaseService {
     required String db,
   }) async {
     try {
-      debugPrint('Testing MySQL connection...');
+      debugPrint('Testing MySQL connection with params...');
       debugPrint('Host: $host');
       debugPrint('Port: $port');
       debugPrint('User: $userName');
       debugPrint('Database: $db');
+      debugPrint('Is Web Platform: ${kIsWeb}');
       
-      final conn = await MySQLConnection.createConnection(
-        host: host,
-        port: port,
-        userName: userName,
-        password: password,
-        databaseName: db,
-      );
+      debugPrint('About to create test MySQL connection with params...');
+      MySQLConnection? conn;
+      try {
+        conn = await MySQLConnection.createConnection(
+          host: host,
+          port: port,
+          userName: userName,
+          password: password,
+          databaseName: db,
+        );
+        debugPrint('Test MySQL connection with params created successfully');
+      } catch (connectionError) {
+        debugPrint('Error creating test MySQL connection with params: $connectionError');
+        debugPrint('Error type: ${connectionError.runtimeType}');
+        return false;
+      }
       
-      await conn.connect();
+      debugPrint('About to connect to test MySQL database with params...');
+      try {
+        await conn.connect();
+        debugPrint('Test MySQL connect() with params method completed successfully');
+      } catch (connectError) {
+        debugPrint('Error in test connect() with params method: $connectError');
+        debugPrint('Error type: ${connectError.runtimeType}');
+        return false;
+      }
+      
       await conn.close();
-      debugPrint('Test connection successful');
+      debugPrint('Test connection with params successful');
       return true;
     } catch (e) {
-      debugPrint('Error testing MySQL connection: $e');
+      debugPrint('Error testing MySQL connection with params: $e');
+      debugPrint('Error type: ${e.runtimeType}');
+      debugPrint('Stack trace: ${StackTrace.current}');
       return false;
     }
   }

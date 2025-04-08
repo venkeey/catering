@@ -10,9 +10,15 @@ import 'screens/suppliers_screen.dart';
 import 'screens/purchase_orders_screen.dart';
 import 'screens/clients_screen.dart';
 import 'screens/events_screen.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'services/database_service.dart';
+import 'services/database_service_factory.dart';
+import 'services/simple_web_database_service.dart';
 
 void main() {
+  debugPrint('Starting application...');
+  debugPrint('Is Web Platform: ${kIsWeb}');
+  
   runApp(const MyApp());
 }
 
@@ -21,8 +27,18 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('MyApp: Building app');
+    debugPrint('MyApp: Is Web Platform: ${kIsWeb}');
+    
+    // Use the factory to get the appropriate database service
+    final dbService = kIsWeb 
+        ? SimpleWebDatabaseService() 
+        : DatabaseService();
+    
+    debugPrint('MyApp: Using database service: ${dbService.runtimeType}');
+    
     return ChangeNotifierProvider(
-      create: (context) => AppState(DatabaseService()),
+      create: (context) => AppState(dbService),
       child: MaterialApp(
         title: 'Catererer',
         theme: ThemeData(
@@ -81,34 +97,8 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    if (appState.error.isNotEmpty) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Error: ${appState.error}',
-                style: const TextStyle(color: Colors.red),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const DatabaseSettingsScreen(),
-                    ),
-                  );
-                },
-                child: const Text('Configure Database'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    // Even if there's an error, we'll continue to the main app
+    // The database settings can still be accessed from the bottom navigation bar
 
     return Scaffold(
       body: _screens[_selectedIndex],

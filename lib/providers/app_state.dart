@@ -49,56 +49,121 @@ class AppState extends ChangeNotifier {
 
   // Initialize data from database
   Future<void> initialize() async {
-    if (!_db.isConnected) {
-      _error = 'Database not connected';
-      notifyListeners();
-      return;
-    }
-
     _isLoading = true;
     _error = '';
     notifyListeners();
 
     try {
+      // Try to connect if not already connected
+      if (!_db.isConnected) {
+        final connected = await _db.connect();
+        if (!connected) {
+          debugPrint('Failed to connect to database, but continuing anyway');
+          // Don't set error message to allow the app to continue
+          _isLoading = false;
+          notifyListeners();
+          return;
+        }
+      }
+      
+      // If connected, try to load data
+      
       // Load all data from database
-      final clientsData = await _db.getClients();
-      _clients = clientsData;
+      try {
+        final clientsData = await _db.getClients();
+        _clients = clientsData;
+      } catch (e) {
+        debugPrint('Error loading clients: $e');
+        _clients = [];
+      }
       
-      final eventsData = await _db.getEvents();
-      _events = eventsData;
+      try {
+        final eventsData = await _db.getEvents();
+        _events = eventsData;
+      } catch (e) {
+        debugPrint('Error loading events: $e');
+        _events = [];
+      }
       
-      final quotesData = await _db.getQuotes();
-      _quotes = quotesData;
+      try {
+        final quotesData = await _db.getQuotes();
+        _quotes = quotesData;
+      } catch (e) {
+        debugPrint('Error loading quotes: $e');
+        _quotes = [];
+      }
       
-      final quoteItemsData = await _db.getQuoteItems();
-      _quoteItems = quoteItemsData;
+      try {
+        final quoteItemsData = await _db.getQuoteItems();
+        _quoteItems = quoteItemsData;
+      } catch (e) {
+        debugPrint('Error loading quote items: $e');
+        _quoteItems = [];
+      }
       
-      final dishesData = await _db.getDishes();
-      _dishes = dishesData;
+      try {
+        final dishesData = await _db.getDishes();
+        _dishes = dishesData;
+      } catch (e) {
+        debugPrint('Error loading dishes: $e');
+        _dishes = [];
+      }
       
-      final menuPackagesData = await _db.getMenuPackages();
-      _menuPackages = menuPackagesData;
+      try {
+        final menuPackagesData = await _db.getMenuPackages();
+        _menuPackages = menuPackagesData;
+      } catch (e) {
+        debugPrint('Error loading menu packages: $e');
+        _menuPackages = [];
+      }
       
-      final packageItemsData = await _db.getPackageItems();
-      _packageItems = packageItemsData;
+      try {
+        final packageItemsData = await _db.getPackageItems();
+        _packageItems = packageItemsData;
+      } catch (e) {
+        debugPrint('Error loading package items: $e');
+        _packageItems = [];
+      }
       
-      final inventoryItemsData = await _db.getInventoryItems();
-      _inventoryItems = inventoryItemsData.map((data) => InventoryItem.fromMap(data)).toList();
+      try {
+        final inventoryItemsData = await _db.getInventoryItems();
+        _inventoryItems = inventoryItemsData.map((data) => InventoryItem.fromMap(data)).toList();
+      } catch (e) {
+        debugPrint('Error loading inventory items: $e');
+        _inventoryItems = [];
+      }
       
-      final suppliersData = await _db.getSuppliers();
-      _suppliers = suppliersData.map((data) => Supplier.fromMap(data)).toList();
+      try {
+        final suppliersData = await _db.getSuppliers();
+        _suppliers = suppliersData.map((data) => Supplier.fromMap(data)).toList();
+      } catch (e) {
+        debugPrint('Error loading suppliers: $e');
+        _suppliers = [];
+      }
       
-      final purchaseOrdersData = await _db.getPurchaseOrders();
-      _purchaseOrders = purchaseOrdersData.map((data) => PurchaseOrder.fromMap(data)).toList();
+      try {
+        final purchaseOrdersData = await _db.getPurchaseOrders();
+        _purchaseOrders = purchaseOrdersData.map((data) => PurchaseOrder.fromMap(data)).toList();
+      } catch (e) {
+        debugPrint('Error loading purchase orders: $e');
+        _purchaseOrders = [];
+      }
       
-      final purchaseOrderItemsData = await _db.getPurchaseOrderItems('');
-      _purchaseOrderItems = purchaseOrderItemsData.map((data) => PurchaseOrderItem.fromMap(data)).toList();
+      try {
+        final purchaseOrderItemsData = await _db.getPurchaseOrderItems('');
+        _purchaseOrderItems = purchaseOrderItemsData.map((data) => PurchaseOrderItem.fromMap(data)).toList();
+      } catch (e) {
+        debugPrint('Error loading purchase order items: $e');
+        _purchaseOrderItems = [];
+      }
 
       _isLoading = false;
+      _error = '';
       notifyListeners();
     } catch (e) {
       _isLoading = false;
-      _error = 'Failed to load data: $e';
+      // Don't set error message to allow the app to continue
+      debugPrint('Error during initialization: $e');
       notifyListeners();
     }
   }
