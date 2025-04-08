@@ -95,16 +95,16 @@ class Dish {
       name: map['name'],
       categoryId: map['categoryId'],
       category: map['category'],
-      basePrice: map['basePrice'].toDouble(),
-      baseFoodCost: map['baseFoodCost'].toDouble(),
-      standardPortionSize: map['standardPortionSize'].toDouble(),
+      basePrice: double.tryParse(map['basePrice'].toString()) ?? 0.0,
+      baseFoodCost: double.tryParse(map['baseFoodCost'].toString()) ?? 0.0,
+      standardPortionSize: double.tryParse(map['standardPortionSize'].toString()) ?? 0.0,
       description: map['description'],
       imageUrl: map['imageUrl'],
-      dietaryTags: map['dietaryTags']?.split(',') ?? [],
+      dietaryTags: map['dietaryTags'] != null ? map['dietaryTags'].toString().split(',') : [],
       itemType: map['itemType'] ?? 'Standard',
-      isActive: map['isActive'] == 1,
+      isActive: map['isActive'] == 1 || map['isActive'] == '1' || map['isActive'] == true,
       ingredients: {}, // TODO: Proper deserialization
-      createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt']) : null,
+      createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt'].toString()) : null,
     );
   }
 } 

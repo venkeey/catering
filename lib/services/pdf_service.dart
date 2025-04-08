@@ -250,7 +250,7 @@ class PdfService {
                   _buildTableCell('₹${totalCost.toStringAsFixed(2)}'),
                 ],
               );
-            }).toList(),
+            }),
           ],
         ),
         pw.SizedBox(height: 24),

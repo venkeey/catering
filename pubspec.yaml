@@ -30,6 +30,7 @@ dependencies:
   uuid: ^4.2.1
   shared_preferences: ^2.2.2
   mysql_client: ^0.0.27
+  http: ^1.1.0
   # mysql1: ^0.20.0  # Commenting out the old package
 
 dev_dependencies:

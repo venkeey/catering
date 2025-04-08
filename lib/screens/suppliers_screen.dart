@@ -4,7 +4,7 @@ import '../providers/app_state.dart';
 import '../models/supplier.dart';
 
 class SuppliersScreen extends StatelessWidget {
-  const SuppliersScreen({Key? key}) : super(key: key);
+  const SuppliersScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -135,7 +135,7 @@ class SuppliersScreen extends StatelessWidget {
 class _SupplierCard extends StatelessWidget {
   final Supplier supplier;
 
-  const _SupplierCard({Key? key, required this.supplier}) : super(key: key);
+  const _SupplierCard({super.key, required this.supplier});
 
   @override
   Widget build(BuildContext context) {

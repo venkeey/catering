@@ -295,7 +295,7 @@ class _DishFormState extends State<DishForm> {
                     },
                   ),
                 );
-              }).toList(),
+              }),
               TextButton.icon(
                 onPressed: _addIngredient,
                 icon: const Icon(Icons.add),

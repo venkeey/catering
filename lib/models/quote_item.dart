@@ -1,5 +1,7 @@
 import 'package:uuid/uuid.dart';
 
+import 'dish.dart';
+
 class QuoteItem {
   final String? id;
   final String quoteId;
@@ -10,6 +12,7 @@ class QuoteItem {
   final int? estimatedServings;
   final double? estimatedTotalWeightGrams;
   final double? estimatedItemFoodCost;
+  final Dish? dishObject; // Reference to the dish object
 
   QuoteItem({
     this.id,
@@ -21,7 +24,11 @@ class QuoteItem {
     this.estimatedServings,
     this.estimatedTotalWeightGrams,
     this.estimatedItemFoodCost,
+    this.dishObject,
   });
+  
+  // Getter for backward compatibility
+  Dish? get dish => dishObject;
 
   QuoteItem copyWith({
     String? id,
@@ -33,6 +40,7 @@ class QuoteItem {
     int? estimatedServings,
     double? estimatedTotalWeightGrams,
     double? estimatedItemFoodCost,
+    Dish? dishObject,
   }) {
     return QuoteItem(
       id: id ?? this.id,
@@ -44,6 +52,7 @@ class QuoteItem {
       estimatedServings: estimatedServings ?? this.estimatedServings,
       estimatedTotalWeightGrams: estimatedTotalWeightGrams ?? this.estimatedTotalWeightGrams,
       estimatedItemFoodCost: estimatedItemFoodCost ?? this.estimatedItemFoodCost,
+      dishObject: dishObject ?? this.dishObject,
     );
   }
 
@@ -61,7 +70,7 @@ class QuoteItem {
     };
   }
 
-  factory QuoteItem.fromMap(Map<String, dynamic> map) {
+  factory QuoteItem.fromMap(Map<String, dynamic> map, {Dish? dish}) {
     return QuoteItem(
       id: map['id'],
       quoteId: map['quoteId'],
@@ -72,6 +81,7 @@ class QuoteItem {
       estimatedServings: map['estimatedServings'],
       estimatedTotalWeightGrams: map['estimatedTotalWeightGrams'],
       estimatedItemFoodCost: map['estimatedItemFoodCost'],
+      dishObject: dish,
     );
   }
 } 

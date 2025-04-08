@@ -6,7 +6,7 @@ import '../models/package_item.dart';
 import '../models/dish.dart';
 
 class MenuPackagesScreen extends StatelessWidget {
-  const MenuPackagesScreen({Key? key}) : super(key: key);
+  const MenuPackagesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +60,7 @@ class MenuPackagesScreen extends StatelessWidget {
 class _MenuPackageCard extends StatelessWidget {
   final MenuPackage package;
 
-  const _MenuPackageCard({Key? key, required this.package}) : super(key: key);
+  const _MenuPackageCard({super.key, required this.package});
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +150,7 @@ class _MenuPackageCard extends StatelessWidget {
 class MenuPackageDialog extends StatefulWidget {
   final MenuPackage? package;
 
-  const MenuPackageDialog({Key? key, this.package}) : super(key: key);
+  const MenuPackageDialog({super.key, this.package});
 
   @override
   State<MenuPackageDialog> createState() => _MenuPackageDialogState();
@@ -268,7 +268,7 @@ class _MenuPackageDialogState extends State<MenuPackageDialog> {
 class AddPackageItemDialog extends StatefulWidget {
   final MenuPackage package;
 
-  const AddPackageItemDialog({Key? key, required this.package}) : super(key: key);
+  const AddPackageItemDialog({super.key, required this.package});
 
   @override
   State<AddPackageItemDialog> createState() => _AddPackageItemDialogState();

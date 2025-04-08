@@ -10,7 +10,8 @@ import 'screens/suppliers_screen.dart';
 import 'screens/purchase_orders_screen.dart';
 import 'screens/clients_screen.dart';
 import 'screens/events_screen.dart';
-import 'services/database_service.dart';
+import 'services/web_database_service.dart';
+import 'services/database_service_interface.dart';
 
 void main() {
   runApp(const MyApp());
@@ -22,7 +23,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => AppState(DatabaseService()),
+      create: (context) => AppState(WebDatabaseService()),
       child: MaterialApp(
         title: 'Catererer',
         theme: ThemeData(
@@ -157,4 +158,4 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-} 
+}

@@ -1,16 +1,16 @@
-import 'package:mysql1/mysql1.dart';
+import 'package:mysql_client/mysql_client.dart';
 
 class DatabaseHelper {
-  static Map<String, dynamic> rowToMap(ResultRow row) {
+  static Map<String, dynamic> rowToMap(Map<String, String?> row) {
     final fields = <String, dynamic>{};
-    for (var field in row.fields.keys) {
+    for (var field in row.keys) {
       fields[field] = row[field];
     }
     return fields;
   }
 
-  static List<Map<String, dynamic>> rowsToList(Results results) {
-    return results.map((row) => rowToMap(row)).toList();
+  static List<Map<String, dynamic>> rowsToList(IResultSet results) {
+    return results.rows.map((row) => rowToMap(row.assoc())).toList();
   }
 
   static String? stringValue(dynamic value) {

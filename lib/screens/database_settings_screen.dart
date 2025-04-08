@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import '../services/database_service_factory.dart';
+import '../services/database_service_interface.dart';
 import '../services/database_service.dart';
+import '../services/web_database_service_interface.dart';
 
 class DatabaseSettingsScreen extends StatefulWidget {
   const DatabaseSettingsScreen({super.key});
@@ -15,6 +19,7 @@ class _DatabaseSettingsScreenState extends State<DatabaseSettingsScreen> {
   final _userController = TextEditingController();
   final _passwordController = TextEditingController();
   final _dbController = TextEditingController();
+  final _apiUrlController = TextEditingController();
   bool _isLoading = false;
   String _statusMessage = '';
   bool _isConnected = false;
@@ -32,11 +37,13 @@ class _DatabaseSettingsScreenState extends State<DatabaseSettingsScreen> {
     _userController.dispose();
     _passwordController.dispose();
     _dbController.dispose();
+    _apiUrlController.dispose();
     super.dispose();
   }
 
   Future<void> _loadCurrentSettings() async {
-    final dbService = DatabaseService();
+    final dbServiceFactory = DatabaseServiceFactory();
+    final dbService = dbServiceFactory.getDatabaseService();
     await dbService.loadConnectionSettings();
     
     setState(() {
@@ -46,6 +53,10 @@ class _DatabaseSettingsScreenState extends State<DatabaseSettingsScreen> {
       _passwordController.text = dbService.password;
       _dbController.text = dbService.db;
       _isConnected = dbService.isConnected;
+      
+      if (kIsWeb && dbService is WebDatabaseServiceInterface) {
+        _apiUrlController.text = dbService.apiUrl;
+      }
     });
   }
 
@@ -58,14 +69,27 @@ class _DatabaseSettingsScreenState extends State<DatabaseSettingsScreen> {
     });
 
     try {
-      final dbService = DatabaseService();
-      await dbService.saveConnectionSettings(
-        host: _hostController.text,
-        port: int.parse(_portController.text),
-        user: _userController.text,
-        password: _passwordController.text,
-        db: _dbController.text,
-      );
+      final dbServiceFactory = DatabaseServiceFactory();
+      final dbService = dbServiceFactory.getDatabaseService();
+      
+      if (kIsWeb && dbService is WebDatabaseServiceInterface) {
+        await dbService.saveConnectionSettings(
+          host: _hostController.text,
+          port: int.parse(_portController.text),
+          user: _userController.text,
+          password: _passwordController.text,
+          db: _dbController.text,
+        );
+        await dbService.saveApiUrl(_apiUrlController.text);
+      } else {
+        await dbService.saveConnectionSettings(
+          host: _hostController.text,
+          port: int.parse(_portController.text),
+          user: _userController.text,
+          password: _passwordController.text,
+          db: _dbController.text,
+        );
+      }
 
       final success = await dbService.testConnection();
       
@@ -92,18 +116,31 @@ class _DatabaseSettingsScreenState extends State<DatabaseSettingsScreen> {
     });
 
     try {
-      final dbService = DatabaseService();
-      await dbService.saveConnectionSettings(
-        host: _hostController.text,
-        port: int.parse(_portController.text),
-        user: _userController.text,
-        password: _passwordController.text,
-        db: _dbController.text,
-      );
+      final dbServiceFactory = DatabaseServiceFactory();
+      final dbService = dbServiceFactory.getDatabaseService();
+      
+      if (kIsWeb && dbService is WebDatabaseServiceInterface) {
+        await dbService.saveConnectionSettings(
+          host: _hostController.text,
+          port: int.parse(_portController.text),
+          user: _userController.text,
+          password: _passwordController.text,
+          db: _dbController.text,
+        );
+        await dbService.saveApiUrl(_apiUrlController.text);
+      } else {
+        await dbService.saveConnectionSettings(
+          host: _hostController.text,
+          port: int.parse(_portController.text),
+          user: _userController.text,
+          password: _passwordController.text,
+          db: _dbController.text,
+        );
+      }
 
       final success = await dbService.connect();
       
-      if (success) {
+      if (success && !kIsWeb && dbService is DatabaseService) {
         await dbService.initializeDatabase();
       }
       
@@ -129,7 +166,8 @@ class _DatabaseSettingsScreenState extends State<DatabaseSettingsScreen> {
     });
 
     try {
-      final dbService = DatabaseService();
+      final dbServiceFactory = DatabaseServiceFactory();
+      final dbService = dbServiceFactory.getDatabaseService();
       await dbService.disconnect();
       
       setState(() {
@@ -231,6 +269,25 @@ class _DatabaseSettingsScreenState extends State<DatabaseSettingsScreen> {
                   return null;
                 },
               ),
+              if (kIsWeb) ...[
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _apiUrlController,
+                  decoration: const InputDecoration(
+                    labelText: 'API URL',
+                    hintText: 'http://localhost:8080/api',
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter the API URL';
+                    }
+                    if (!value.startsWith('http')) {
+                      return 'URL should start with http:// or https://';
+                    }
+                    return null;
+                  },
+                ),
+              ],
               const SizedBox(height: 24),
               if (_statusMessage.isNotEmpty)
                 Padding(

@@ -7,7 +7,7 @@ import '../models/inventory_item.dart';
 import '../models/supplier.dart';
 
 class PurchaseOrdersScreen extends StatelessWidget {
-  const PurchaseOrdersScreen({Key? key}) : super(key: key);
+  const PurchaseOrdersScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -166,7 +166,7 @@ class PurchaseOrdersScreen extends StatelessWidget {
 class _PurchaseOrderCard extends StatelessWidget {
   final PurchaseOrder order;
 
-  const _PurchaseOrderCard({Key? key, required this.order}) : super(key: key);
+  const _PurchaseOrderCard({super.key, required this.order});
 
   @override
   Widget build(BuildContext context) {

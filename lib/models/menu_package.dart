@@ -1,5 +1,7 @@
 import 'package:uuid/uuid.dart';
 
+import 'package_item.dart';
+
 class MenuPackage {
   final String? id;
   final String name;
@@ -8,6 +10,10 @@ class MenuPackage {
   final String eventType;
   final bool isActive;
   final DateTime createdAt;
+  final List<PackageItem> packageItems;
+  
+  // Getter for backward compatibility
+  List<PackageItem> get items => packageItems;
 
   MenuPackage({
     this.id,
@@ -17,7 +23,10 @@ class MenuPackage {
     required this.eventType,
     this.isActive = true,
     DateTime? createdAt,
-  }) : createdAt = createdAt ?? DateTime.now();
+    List<PackageItem>? packageItems,
+  }) : 
+    createdAt = createdAt ?? DateTime.now(),
+    packageItems = packageItems ?? [];
 
   MenuPackage copyWith({
     String? id,
@@ -27,6 +36,7 @@ class MenuPackage {
     String? eventType,
     bool? isActive,
     DateTime? createdAt,
+    List<PackageItem>? packageItems,
   }) {
     return MenuPackage(
       id: id ?? this.id,
@@ -36,6 +46,7 @@ class MenuPackage {
       eventType: eventType ?? this.eventType,
       isActive: isActive ?? this.isActive,
       createdAt: createdAt ?? this.createdAt,
+      packageItems: packageItems ?? this.packageItems,
     );
   }
 
@@ -51,15 +62,16 @@ class MenuPackage {
     };
   }
 
-  factory MenuPackage.fromMap(Map<String, dynamic> map) {
+  factory MenuPackage.fromMap(Map<String, dynamic> map, {List<PackageItem>? packageItems}) {
     return MenuPackage(
       id: map['id'],
       name: map['name'],
       description: map['description'],
-      basePrice: map['base_price'].toDouble(),
+      basePrice: map['base_price'] is double ? map['base_price'] : double.parse(map['base_price'].toString()),
       eventType: map['event_type'],
       isActive: map['is_active'] == 1,
       createdAt: DateTime.parse(map['created_at']),
+      packageItems: packageItems,
     );
   }
 } 

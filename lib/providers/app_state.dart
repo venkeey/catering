@@ -10,10 +10,10 @@ import '../models/inventory_item.dart';
 import '../models/supplier.dart';
 import '../models/purchase_order.dart';
 import '../models/purchase_order_item.dart';
-import '../services/database_service.dart';
+import '../services/database_service_interface.dart';
 
 class AppState extends ChangeNotifier {
-  final DatabaseService _db;
+  final DatabaseServiceInterface _db;
   
   AppState(this._db);
   
@@ -62,37 +62,37 @@ class AppState extends ChangeNotifier {
     try {
       // Load all data from database
       final clientsData = await _db.getClients();
-      _clients = clientsData.map((data) => Client.fromMap(data as Map<String, dynamic>)).toList();
+      _clients = clientsData;
       
       final eventsData = await _db.getEvents();
-      _events = eventsData.map((data) => Event.fromMap(data as Map<String, dynamic>)).toList();
+      _events = eventsData;
       
       final quotesData = await _db.getQuotes();
-      _quotes = quotesData.map((data) => Quote.fromMap(data as Map<String, dynamic>)).toList();
+      _quotes = quotesData;
       
       final quoteItemsData = await _db.getQuoteItems();
-      _quoteItems = quoteItemsData.map((data) => QuoteItem.fromMap(data as Map<String, dynamic>)).toList();
+      _quoteItems = quoteItemsData;
       
       final dishesData = await _db.getDishes();
-      _dishes = dishesData.map((data) => Dish.fromMap(data as Map<String, dynamic>)).toList();
+      _dishes = dishesData;
       
       final menuPackagesData = await _db.getMenuPackages();
-      _menuPackages = menuPackagesData.map((data) => MenuPackage.fromMap(data as Map<String, dynamic>)).toList();
+      _menuPackages = menuPackagesData;
       
       final packageItemsData = await _db.getPackageItems();
-      _packageItems = packageItemsData.map((data) => PackageItem.fromMap(data as Map<String, dynamic>)).toList();
+      _packageItems = packageItemsData;
       
       final inventoryItemsData = await _db.getInventoryItems();
-      _inventoryItems = inventoryItemsData.map((data) => InventoryItem.fromMap(data as Map<String, dynamic>)).toList();
+      _inventoryItems = inventoryItemsData.map((data) => InventoryItem.fromMap(data)).toList();
       
       final suppliersData = await _db.getSuppliers();
-      _suppliers = suppliersData.map((data) => Supplier.fromMap(data as Map<String, dynamic>)).toList();
+      _suppliers = suppliersData.map((data) => Supplier.fromMap(data)).toList();
       
       final purchaseOrdersData = await _db.getPurchaseOrders();
-      _purchaseOrders = purchaseOrdersData.map((data) => PurchaseOrder.fromMap(data as Map<String, dynamic>)).toList();
+      _purchaseOrders = purchaseOrdersData.map((data) => PurchaseOrder.fromMap(data)).toList();
       
       final purchaseOrderItemsData = await _db.getPurchaseOrderItems('');
-      _purchaseOrderItems = purchaseOrderItemsData.map((data) => PurchaseOrderItem.fromMap(data as Map<String, dynamic>)).toList();
+      _purchaseOrderItems = purchaseOrderItemsData.map((data) => PurchaseOrderItem.fromMap(data)).toList();
 
       _isLoading = false;
       notifyListeners();
@@ -153,7 +153,7 @@ class AppState extends ChangeNotifier {
     }
 
     try {
-      await _db.deleteClient(int.parse(id));
+      await _db.deleteClient(id);
       _clients.removeWhere((c) => c.id == id);
       _events.removeWhere((e) => e.clientId == id);
       _quotes.removeWhere((q) => q.clientId == id);
@@ -215,7 +215,7 @@ class AppState extends ChangeNotifier {
     }
 
     try {
-      await _db.deleteEvent(int.parse(id));
+      await _db.deleteEvent(id);
       _events.removeWhere((e) => e.id == id);
       _quotes.removeWhere((q) => q.eventId == id);
       _quoteItems.removeWhere((qi) => _quotes.any((q) => q.id == qi.quoteId));
@@ -276,7 +276,7 @@ class AppState extends ChangeNotifier {
     }
 
     try {
-      await _db.deleteQuote(int.parse(id));
+      await _db.deleteQuote(id);
       _quotes.removeWhere((q) => q.id == id);
       _quoteItems.removeWhere((qi) => qi.quoteId == id);
       notifyListeners();
@@ -339,7 +339,7 @@ class AppState extends ChangeNotifier {
 
     try {
       final item = _quoteItems.firstWhere((qi) => qi.id == id);
-      await _db.deleteQuoteItem(int.parse(id));
+      await _db.deleteQuoteItem(id);
       _quoteItems.removeWhere((qi) => qi.id == id);
       await recalculateQuoteTotals(item.quoteId);
       notifyListeners();
@@ -358,7 +358,7 @@ class AppState extends ChangeNotifier {
     }
 
     try {
-      final id = await _db.insertDish(dish);
+      final id = await _db.addDish(dish);
       final updatedDish = Dish(
         id: id.toString(),
         name: dish.name,
@@ -633,7 +633,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
         return;
       }
-      await _db.updateSupplier(supplier.id!, supplier.toMap());
+      await _db.updateSupplier(supplier.toMap());
       final index = _suppliers.indexWhere((s) => s.id == supplier.id);
       if (index != -1) {
         _suppliers[index] = supplier;
@@ -694,7 +694,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
         return;
       }
-      await _db.updateInventoryItem(item.id!, item.toMap());
+      await _db.updateInventoryItem(item.toMap());
       final index = _inventoryItems.indexWhere((i) => i.id == item.id);
       if (index != -1) {
         _inventoryItems[index] = item;
@@ -755,7 +755,7 @@ class AppState extends ChangeNotifier {
         notifyListeners();
         return;
       }
-      await _db.updatePurchaseOrder(order.id!, order.toMap());
+      await _db.updatePurchaseOrder(order.toMap());
       final index = _purchaseOrders.indexWhere((o) => o.id == order.id);
       if (index != -1) {
         _purchaseOrders[index] = order;

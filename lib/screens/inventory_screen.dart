@@ -130,7 +130,7 @@ void _showAddEditInventoryItemDialog(BuildContext context, [InventoryItem? item]
 }
 
 class InventoryScreen extends StatelessWidget {
-  const InventoryScreen({Key? key}) : super(key: key);
+  const InventoryScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -172,7 +172,7 @@ class InventoryScreen extends StatelessWidget {
 class _InventoryItemCard extends StatelessWidget {
   final InventoryItem item;
 
-  const _InventoryItemCard({Key? key, required this.item}) : super(key: key);
+  const _InventoryItemCard({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {
