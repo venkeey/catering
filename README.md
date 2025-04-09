@@ -4,6 +4,12 @@ A Flutter application for catering business management.
 
 ## Setup and Running Instructions
 
+### PDF Generation
+
+The application generates PDF quotes using a simplified approach that doesn't require custom fonts. Instead of using the Rupee symbol (₹), the application uses "Rs." to avoid font compatibility issues.
+
+If you want to customize the PDF generation, you can modify the `pdf_service_simple.dart` file.
+
 ### Database Setup
 
 1. Set up MySQL database:

@@ -404,20 +404,56 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
               return false;
             }
             
+            // Debug the dish data
+            debugPrint('Processing dish: ${dishData['name']}');
+            
+            // Handle dietary tags
+            List<String> processDietaryTags(dynamic tags) {
+              if (tags == null) return [];
+              if (tags is List) {
+                return tags.map((tag) => tag.toString()).toList();
+              }
+              if (tags is String) {
+                return tags.split(',').map((tag) => tag.trim()).toList();
+              }
+              return [];
+            }
+            
+            // Handle ingredients
+            Map<String, double> processIngredients(dynamic ingredients) {
+              if (ingredients == null) return {};
+              if (ingredients is Map) {
+                Map<String, double> result = {};
+                ingredients.forEach((key, value) {
+                  if (value is num) {
+                    result[key.toString()] = value.toDouble();
+                  } else if (value is String) {
+                    try {
+                      result[key.toString()] = double.parse(value);
+                    } catch (e) {
+                      result[key.toString()] = 0.0;
+                    }
+                  }
+                });
+                return result;
+              }
+              return {};
+            }
+            
             return Dish(
-              id: dishData['dish_id']?.toString(),
+              id: dishData['dish_id']?.toString() ?? '0',
               name: dishData['name'] ?? '',
-              categoryId: dishData['category_id'].toString(),
-              category: dishData['category'],
+              categoryId: dishData['category_id']?.toString() ?? '0',
+              category: dishData['category'] ?? 'Uncategorized',
               basePrice: parseDoubleSafely(dishData['base_price']),
               baseFoodCost: parseDoubleSafely(dishData['base_food_cost']),
               standardPortionSize: parseDoubleSafely(dishData['standard_portion_size']),
               description: dishData['description'],
               imageUrl: dishData['image_url'],
-              dietaryTags: dishData['dietary_tags'],
+              dietaryTags: processDietaryTags(dishData['dietary_tags']),
               itemType: dishData['item_type'] ?? 'Standard',
               isActive: parseBoolSafely(dishData['is_active']),
-              ingredients: dishData['ingredients'],
+              ingredients: processIngredients(dishData['ingredients']),
               createdAt: dishData['created_at'] != null ? 
                   DateTime.parse(dishData['created_at']) : DateTime.now(),
             );
@@ -551,10 +587,13 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
               return 0;
             }
             
+            // Debug the quote item data
+            debugPrint('Processing quote item: ${quoteItemData['item_id']}');
+            
             return QuoteItem(
               id: quoteItemData['item_id']?.toString(),
-              quoteId: quoteItemData['quote_id']?.toString() ?? '',
-              dishId: quoteItemData['dish_id']?.toString() ?? '',
+              quoteId: quoteItemData['quote_id']?.toString() ?? '0',
+              dishId: quoteItemData['dish_id']?.toString() ?? '0',
               quotedPortionSizeGrams: parseDoubleSafely(quoteItemData['quoted_portion_size_grams']),
               quotedBaseFoodCostPerServing: parseDoubleSafely(quoteItemData['quoted_base_food_cost_per_serving']),
               percentageTakeRate: parseDoubleSafely(quoteItemData['percentage_take_rate']),
@@ -622,10 +661,13 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
               return 0;
             }
             
+            // Debug the quote item data
+            debugPrint('Processing quote item for quote: ${quoteItemData['item_id']}');
+            
             return QuoteItem(
               id: quoteItemData['item_id']?.toString(),
-              quoteId: quoteItemData['quote_id']?.toString() ?? '',
-              dishId: quoteItemData['dish_id']?.toString() ?? '',
+              quoteId: quoteItemData['quote_id']?.toString() ?? quoteId, // Use the provided quoteId as fallback
+              dishId: quoteItemData['dish_id']?.toString() ?? '0',
               quotedPortionSizeGrams: parseDoubleSafely(quoteItemData['quoted_portion_size_grams']),
               quotedBaseFoodCostPerServing: parseDoubleSafely(quoteItemData['quoted_base_food_cost_per_serving']),
               percentageTakeRate: parseDoubleSafely(quoteItemData['percentage_take_rate']),
@@ -721,7 +763,21 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
         final data = json.decode(response.body);
         if (data['status'] == 'success') {
           final List<dynamic> packageItemsData = data['data'];
-          return packageItemsData.map((packageItemData) => PackageItem.fromMap(packageItemData)).toList();
+          return packageItemsData.map((packageItemData) {
+            // Make sure we have valid packageId and dishId
+            String packageIdStr = packageItemData['package_id']?.toString() ?? '0';
+            String dishIdStr = packageItemData['dish_id']?.toString() ?? '0';
+            bool isOptional = packageItemData['is_optional'] == 1 || 
+                              packageItemData['is_optional'] == '1' || 
+                              packageItemData['is_optional'] == true;
+            
+            return PackageItem(
+              id: packageItemData['item_id']?.toString(),
+              packageId: packageIdStr,
+              dishId: dishIdStr,
+              isOptional: isOptional,
+            );
+          }).toList();
         }
       }
       return [];
@@ -750,7 +806,21 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
         final data = json.decode(response.body);
         if (data['status'] == 'success') {
           final List<dynamic> packageItemsData = data['data'];
-          return packageItemsData.map((packageItemData) => PackageItem.fromMap(packageItemData)).toList();
+          return packageItemsData.map((packageItemData) {
+            // Make sure we have valid packageId and dishId
+            String packageIdStr = packageItemData['package_id']?.toString() ?? packageId;
+            String dishIdStr = packageItemData['dish_id']?.toString() ?? '0';
+            bool isOptional = packageItemData['is_optional'] == 1 || 
+                              packageItemData['is_optional'] == '1' || 
+                              packageItemData['is_optional'] == true;
+            
+            return PackageItem(
+              id: packageItemData['item_id']?.toString(),
+              packageId: packageIdStr,
+              dishId: dishIdStr,
+              isOptional: isOptional,
+            );
+          }).toList();
         } else {
           debugPrint('Failed to load package items: ${data['message']}');
           return [];
@@ -863,13 +933,14 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
   }
 
   // PurchaseOrderItem-related methods
+  @override
   Future<List<Map<String, dynamic>>> getPurchaseOrderItems(String orderId) async {
     if (!_isConnected) {
       return [];
     }
     
     try {
-      final response = await http.get(Uri.parse('$_apiUrl/purchase-order-items'));
+      final response = await http.get(Uri.parse('$_apiUrl/purchase-order-items/order/$orderId'));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);

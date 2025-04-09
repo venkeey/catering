@@ -1,6 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
-import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -9,11 +7,11 @@ import '../models/client.dart';
 import '../models/event.dart';
 import '../models/dish.dart';
 import 'package:intl/intl.dart';
-import 'pdf_service_simple.dart';
-import 'font_loader.dart' as app_fonts;
 import '../utils/file_utils.dart';
 
-class PdfService {
+/// A simplified PDF service that doesn't rely on custom fonts
+/// This avoids the issues with loading TTF files
+class PdfServiceSimple {
   static Future<File> generateQuotePdf({
     required Quote quote,
     required Client client,
@@ -22,25 +20,16 @@ class PdfService {
     required Map<String, double> dishQuantities,
     required Map<String, double> percentageChoices,
   }) async {
-    pw.Document pdf;
-    
-    try {
-      // Use our FontLoader utility to create a PDF with Roboto fonts
-      pdf = await app_fonts.FontLoader.createPdfWithRoboto();
-      print('Successfully created PDF with Roboto fonts');
-    } catch (e) {
-      // If loading fonts fails, fall back to PdfServiceSimple
-      print('Error creating PDF with Roboto fonts: $e');
-      print('Falling back to PdfServiceSimple');
-      return PdfServiceSimple.generateQuotePdf(
-        quote: quote,
-        client: client,
-        event: event,
-        selectedDishes: selectedDishes,
-        dishQuantities: dishQuantities,
-        percentageChoices: percentageChoices,
-      );
-    }
+    // Create a basic PDF document with built-in fonts that have better Unicode support
+    final pdf = pw.Document(
+      // Use Courier as the base font which has better Unicode support than Helvetica
+      theme: pw.ThemeData.withFont(
+        base: pw.Font.courier(),
+        bold: pw.Font.courierBold(),
+        italic: pw.Font.courierOblique(),
+        boldItalic: pw.Font.courierBoldOblique(),
+      ),
+    );
 
     // Add pages to the PDF
     pdf.addPage(
@@ -391,13 +380,6 @@ class PdfService {
       ),
     );
   }
-  
-  // Helper method to format currency with the Rupee symbol
-  static String formatCurrency(double amount) {
-    // Use "Rs." instead of the Rupee symbol (₹) to avoid font issues
-    // Even with Roboto, some PDF viewers might have issues with Unicode
-    return 'Rs. ${amount.toStringAsFixed(2)}';
-  }
 
   static pw.Widget _buildCostRow(String label, double amount, {bool isTotal = false}) {
     return pw.Padding(
@@ -423,4 +405,11 @@ class PdfService {
       ),
     );
   }
-} 
+  
+  // Helper method to format currency with the Rupee symbol
+  static String formatCurrency(double amount) {
+    // Use "Rs." instead of the Rupee symbol (₹) to avoid font issues
+    // This ensures compatibility with all PDF viewers
+    return 'Rs. ${amount.toStringAsFixed(2)}';
+  }
+}

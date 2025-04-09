@@ -1,7 +1,6 @@
-import 'dart:io';
+import 'dart:html' as html;
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../models/quote.dart';
@@ -9,12 +8,12 @@ import '../models/client.dart';
 import '../models/event.dart';
 import '../models/dish.dart';
 import 'package:intl/intl.dart';
-import 'pdf_service_simple.dart';
 import 'font_loader.dart' as app_fonts;
-import '../utils/file_utils.dart';
 
-class PdfService {
-  static Future<File> generateQuotePdf({
+/// PDF service implementation for web platforms
+/// This avoids using File operations which aren't supported on web
+class PdfServiceWeb {
+  static Future<void> generateAndDownloadQuotePdf({
     required Quote quote,
     required Client client,
     Event? event,
@@ -29,16 +28,18 @@ class PdfService {
       pdf = await app_fonts.FontLoader.createPdfWithRoboto();
       print('Successfully created PDF with Roboto fonts');
     } catch (e) {
-      // If loading fonts fails, fall back to PdfServiceSimple
+      // If loading fonts fails, create a basic PDF
       print('Error creating PDF with Roboto fonts: $e');
-      print('Falling back to PdfServiceSimple');
-      return PdfServiceSimple.generateQuotePdf(
-        quote: quote,
-        client: client,
-        event: event,
-        selectedDishes: selectedDishes,
-        dishQuantities: dishQuantities,
-        percentageChoices: percentageChoices,
+      print('Falling back to basic PDF');
+      
+      // Create a basic PDF document with built-in fonts that have better Unicode support
+      pdf = pw.Document(
+        theme: pw.ThemeData.withFont(
+          base: pw.Font.courier(),
+          bold: pw.Font.courierBold(),
+          italic: pw.Font.courierOblique(),
+          boldItalic: pw.Font.courierBoldOblique(),
+        ),
       );
     }
 
@@ -60,20 +61,14 @@ class PdfService {
       ),
     );
 
-    // Save the PDF using our FileUtils helper
-    try {
-      final file = await FileUtils.createSafeFile('quote_${quote.id}.pdf');
-      await file.writeAsBytes(await pdf.save());
-      print('PDF saved successfully at: ${file.path}');
-      return file;
-    } catch (e) {
-      print('Error saving PDF: $e');
-      // Create a file in the current directory as absolute last resort
-      final file = File('quote_${quote.id}.pdf');
-      await file.writeAsBytes(await pdf.save());
-      print('PDF saved in current directory as fallback');
-      return file;
-    }
+    // Save and download the PDF
+    final bytes = await pdf.save();
+    final blob = html.Blob([bytes], 'application/pdf');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', 'quote_${quote.id}.pdf')
+      ..click();
+    html.Url.revokeObjectUrl(url);
   }
 
   static pw.Widget _buildHeader(Client client, Event? event) {
@@ -391,13 +386,6 @@ class PdfService {
       ),
     );
   }
-  
-  // Helper method to format currency with the Rupee symbol
-  static String formatCurrency(double amount) {
-    // Use "Rs." instead of the Rupee symbol (₹) to avoid font issues
-    // Even with Roboto, some PDF viewers might have issues with Unicode
-    return 'Rs. ${amount.toStringAsFixed(2)}';
-  }
 
   static pw.Widget _buildCostRow(String label, double amount, {bool isTotal = false}) {
     return pw.Padding(
@@ -423,4 +411,10 @@ class PdfService {
       ),
     );
   }
-} 
+  
+  // Helper method to format currency with the Rupee symbol
+  static String formatCurrency(double amount) {
+    // Use "Rs." instead of the Rupee symbol (₹) to avoid font issues
+    return 'Rs. ${amount.toStringAsFixed(2)}';
+  }
+}

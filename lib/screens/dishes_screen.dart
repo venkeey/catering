@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state.dart';
 import '../widgets/dish_form.dart';
+import 'dish_details_screen.dart';
 
 class DishesScreen extends StatelessWidget {
   const DishesScreen({super.key});
@@ -95,7 +96,12 @@ class DishesScreen extends StatelessWidget {
                     ],
                   ),
                   onTap: () {
-                    // TODO: Show dish details
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => DishDetailsScreen(dish: dish),
+                      ),
+                    );
                   },
                 ),
               );

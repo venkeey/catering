@@ -6,7 +6,7 @@ import '../models/client.dart';
 import '../models/event.dart';
 import '../models/dish.dart';
 import '../widgets/quote_form.dart';
-import '../services/pdf_service.dart';
+import '../services/pdf_service_simple.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
@@ -27,7 +27,7 @@ class QuotesScreen extends StatelessWidget {
       final dishQuantities = <String, double>{};
       final percentageChoices = <String, double>{};
 
-      final pdfFile = await PdfService.generateQuotePdf(
+      final pdfFile = await PdfServiceSimple.generateQuotePdf(
         quote: quote,
         client: client,
         event: event,
@@ -159,7 +159,7 @@ class QuotesScreen extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Guests: ${quote.totalGuestCount} | Total: ₹${quote.grandTotal.toStringAsFixed(2)}',
+                        'Guests: ${quote.totalGuestCount} | Total: Rs. ${quote.grandTotal.toStringAsFixed(2)}',
                       ),
                     ],
                   ),

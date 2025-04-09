@@ -10,6 +10,7 @@ import 'screens/suppliers_screen.dart';
 import 'screens/purchase_orders_screen.dart';
 import 'screens/clients_screen.dart';
 import 'screens/events_screen.dart';
+import 'screens/dishes_screen.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'services/database_service.dart';
 import 'services/database_service_factory.dart';
@@ -65,6 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
     const ClientsScreen(),
     const EventsScreen(),
     const QuotesScreen(),
+    const DishesScreen(),
     const MenuPackagesScreen(),
     const InventoryScreen(),
     const SuppliersScreen(),
@@ -122,6 +124,10 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.description),
             label: 'Quotes',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.food_bank),
+            label: 'Dishes',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.restaurant_menu),
