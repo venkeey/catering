@@ -18,7 +18,12 @@ import 'package:open_file/open_file.dart';
 /// A simplified PDF service that doesn't rely on custom fonts
 /// This avoids the issues with loading TTF files
 class PdfServiceSimple {
-  static Future<void> generateAndShareQuote(Quote quote, List<Dish> selectedDishes) async {
+  // Factory method to create an instance
+  static PdfServiceSimple create() {
+    return PdfServiceSimple();
+  }
+
+  Future<void> generateAndShareQuote(Quote quote, List<Dish> selectedDishes) async {
     debugPrint('Starting PDF generation for quote: ${quote.id}');
     debugPrint('Number of items in quote: ${quote.items.length}');
     debugPrint('Number of selected dishes: ${selectedDishes.length}');
@@ -69,7 +74,7 @@ class PdfServiceSimple {
     );
   }
 
-  static Future<Uint8List> generateQuotePdf({
+  Future<Uint8List> generateQuotePdf({
     required Quote quote,
     required Client client,
     Event? event,
@@ -114,7 +119,7 @@ class PdfServiceSimple {
     return pdfBytes;
   }
 
-  static pw.Widget _buildHeader(String? clientName, String? eventName) {
+  pw.Widget _buildHeader(String? clientName, String? eventName) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(20),
       decoration: pw.BoxDecoration(
@@ -191,7 +196,7 @@ class PdfServiceSimple {
     );
   }
 
-  static pw.Widget _buildQuoteDetails(Quote quote) {
+  pw.Widget _buildQuoteDetails(Quote quote) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(20),
       decoration: pw.BoxDecoration(
@@ -236,7 +241,7 @@ class PdfServiceSimple {
     );
   }
 
-  static pw.Widget _buildDetailRow(String label, String value) {
+  pw.Widget _buildDetailRow(String label, String value) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 4),
       child: pw.Row(
@@ -261,7 +266,7 @@ class PdfServiceSimple {
     );
   }
 
-  static pw.Widget _buildItemsTable(
+  pw.Widget _buildItemsTable(
     Quote quote,
     List<Dish> selectedDishes,
     Map<String, double> dishQuantities,
@@ -271,6 +276,15 @@ class PdfServiceSimple {
     debugPrint('PdfServiceSimple: Selected dishes count: ${selectedDishes.length}');
     debugPrint('PdfServiceSimple: Dish quantities: $dishQuantities');
     debugPrint('PdfServiceSimple: Percentage choices: $percentageChoices');
+    
+    // Group dishes by category
+    final dishesByCategory = <String, List<Dish>>{};
+    for (final dish in selectedDishes) {
+      if (!dishesByCategory.containsKey(dish.category)) {
+        dishesByCategory[dish.category] = [];
+      }
+      dishesByCategory[dish.category]!.add(dish);
+    }
     
     return pw.Container(
       padding: const pw.EdgeInsets.all(20),
@@ -309,22 +323,48 @@ class PdfServiceSimple {
                   _buildTableCell('Total', isHeader: true),
                 ],
               ),
-              ...selectedDishes.map((dish) {
-                debugPrint('PdfServiceSimple: Processing dish: ${dish.name} (ID: ${dish.id})');
-                final quantity = dishQuantities[dish.id] ?? 0;
-                final percentage = percentageChoices[dish.id] ?? 0.0;
-                final totalCost = dish.basePrice * quantity * (percentage / 100);
+              ...dishesByCategory.entries.expand((entry) {
+                final category = entry.key;
+                final dishes = entry.value;
                 
-                debugPrint('PdfServiceSimple: Dish ${dish.name} - Quantity: $quantity, Percentage: $percentage, Total Cost: $totalCost');
-                
-                return pw.TableRow(
-                  children: [
-                    _buildTableCell(dish.name),
-                    _buildTableCell('$quantity'),
-                    _buildTableCell('Rs. ${_formatIndianNumber(dish.basePrice.round())}'),
-                    _buildTableCell('Rs. ${_formatIndianNumber(totalCost.round())}'),
-                  ],
-                );
+                return [
+                  // Category header
+                  pw.TableRow(
+                    decoration: pw.BoxDecoration(color: PdfColors.grey200),
+                    children: [
+                      _buildTableCell(
+                        category,
+                        isHeader: true,
+                        style: pw.TextStyle(
+                          fontSize: 12,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColors.blue900,
+                        ),
+                      ),
+                      _buildTableCell('', isHeader: true),
+                      _buildTableCell('', isHeader: true),
+                      _buildTableCell('', isHeader: true),
+                    ],
+                  ),
+                  // Category items
+                  ...dishes.map((dish) {
+                    debugPrint('PdfServiceSimple: Processing dish: ${dish.name} (ID: ${dish.id})');
+                    final quantity = dishQuantities[dish.id] ?? 0;
+                    final percentage = percentageChoices[dish.id] ?? 0.0;
+                    final totalCost = dish.basePrice * quantity * (percentage / 100);
+                    
+                    debugPrint('PdfServiceSimple: Dish ${dish.name} - Quantity: $quantity, Percentage: $percentage, Total Cost: $totalCost');
+                    
+                    return pw.TableRow(
+                      children: [
+                        _buildTableCell(dish.name),
+                        _buildTableCell('$quantity'),
+                        _buildTableCell('Rs. ${_formatIndianNumber(dish.basePrice.round())}'),
+                        _buildTableCell('Rs. ${_formatIndianNumber(totalCost.round())}'),
+                      ],
+                    );
+                  }).toList(),
+                ];
               }).toList(),
             ],
           ),
@@ -333,7 +373,7 @@ class PdfServiceSimple {
     );
   }
 
-  static pw.Widget _buildTotals(Quote quote) {
+  pw.Widget _buildTotals(Quote quote) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(20),
       decoration: pw.BoxDecoration(
@@ -352,7 +392,7 @@ class PdfServiceSimple {
     );
   }
 
-  static pw.Widget _buildTotalRow(String label, String value, {bool isTotal = false}) {
+  pw.Widget _buildTotalRow(String label, String value, {bool isTotal = false}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 4),
       child: pw.Row(
@@ -380,7 +420,7 @@ class PdfServiceSimple {
     );
   }
 
-  static pw.Widget _buildFooter() {
+  pw.Widget _buildFooter() {
     return pw.Container(
       padding: const pw.EdgeInsets.all(20),
       decoration: pw.BoxDecoration(
@@ -410,48 +450,68 @@ class PdfServiceSimple {
     );
   }
 
+  // Helper method to format numbers in Indian format
+  String _formatIndianNumber(int number) {
+    final formatter = NumberFormat.currency(
+      locale: 'en_IN',
+      symbol: '₹',
+      decimalDigits: 0,
+    );
+    return formatter.format(number);
+  }
+
   // Helper method to build table cells
-  static pw.Widget _buildTableCell(String text, {bool isHeader = false}) {
+  pw.Widget _buildTableCell(String text, {bool isHeader = false, pw.TextStyle? style}) {
     return pw.Container(
       padding: const pw.EdgeInsets.all(8),
+      decoration: isHeader ? pw.BoxDecoration(
+        color: PdfColors.grey300,
+        border: pw.Border.all(color: PdfColors.grey400),
+      ) : null,
       child: pw.Text(
         text,
-        style: pw.TextStyle(
-          fontSize: isHeader ? 12 : 11,
-          fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
-          color: isHeader ? PdfColors.blue900 : PdfColors.black,
+        style: style ?? pw.TextStyle(
+          fontSize: isHeader ? 12 : 10,
+          fontWeight: isHeader ? pw.FontWeight.bold : null,
         ),
       ),
     );
   }
 
-  // Helper method to format numbers in Indian format (with commas)
-  static String _formatIndianNumber(int number) {
-    String numStr = number.toString();
-    int len = numStr.length;
-    String result = '';
+  // Helper method to build table rows
+  pw.Widget _buildTableRow(List<String> cells, {bool isHeader = false}) {
+    return pw.Row(
+      children: cells.map((cell) => pw.Expanded(
+        child: _buildTableCell(cell, isHeader: isHeader),
+      )).toList(),
+    );
+  }
+
+  // Helper method to build table headers
+  pw.Widget _buildTableHeaders() {
+    return _buildTableRow([
+      'Item',
+      'Quantity',
+      'Unit Price',
+      'Total',
+    ], isHeader: true);
+  }
+
+  // Helper method to build table cells for a dish
+  pw.Widget _buildDishRow(Dish dish, int quantity, double? percentage) {
+    final unitPrice = dish.basePrice;
+    final totalPrice = unitPrice * quantity;
     
-    // Handle the last 3 digits (hundreds, tens, ones)
-    if (len > 3) {
-      result = numStr.substring(len - 3);
-      numStr = numStr.substring(0, len - 3);
-      len = numStr.length;
-    } else {
-      return numStr;
-    }
-    
-    // Add commas for thousands and lakhs
-    while (len > 2) {
-      result = numStr.substring(len - 2) + ',' + result;
-      numStr = numStr.substring(0, len - 2);
-      len = numStr.length;
-    }
-    
-    // Add the remaining digits
-    if (len > 0) {
-      result = numStr + ',' + result;
-    }
-    
-    return result;
+    return _buildTableRow([
+      dish.name,
+      quantity.toString(),
+      _formatIndianNumber(unitPrice.toInt()),
+      _formatIndianNumber(totalPrice.toInt()),
+    ]);
+  }
+
+  // Helper method to build table cells for a category header
+  pw.Widget _buildCategoryHeader(String category) {
+    return _buildTableRow([category], isHeader: true);
   }
 }

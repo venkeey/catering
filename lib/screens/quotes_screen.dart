@@ -63,7 +63,8 @@ class QuotesScreen extends StatelessWidget {
       debugPrint('QuotesScreen: Percentage choices: $percentageChoices');
 
       debugPrint('QuotesScreen: Calling PdfServiceSimple.generateQuotePdf');
-      final pdfFile = await PdfServiceSimple.generateQuotePdf(
+      final pdfService = PdfServiceSimple.create();
+      final pdfFile = await pdfService.generateQuotePdf(
         quote: quote,
         client: client,
         event: event,

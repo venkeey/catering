@@ -52,11 +52,15 @@ class DishDatabaseService {
           }
         }
         
+        // Use category_id as category if category column doesn't exist
+        final categoryId = fields['category_id'] as String? ?? '';
+        final category = fields['category'] as String? ?? categoryId;
+        
         return Dish(
           id: DatabaseHelper.stringValue(fields['dish_id']),
           name: fields['name'] as String? ?? '',
-          categoryId: fields['category_id'] as String? ?? '',
-          category: fields['category'] as String? ?? '',
+          categoryId: categoryId,
+          category: category,
           basePrice: DatabaseHelper.doubleValue(fields['base_price']) ?? 0.0,
           baseFoodCost: DatabaseHelper.doubleValue(fields['base_food_cost']) ?? 0.0,
           standardPortionSize: DatabaseHelper.doubleValue(fields['standard_portion_size']) ?? 0.0,
@@ -122,11 +126,15 @@ class DishDatabaseService {
         }
       }
       
+      // Use category_id as category if category column doesn't exist
+      final categoryId = fields['category_id'] as String? ?? '';
+      final category = fields['category'] as String? ?? categoryId;
+      
       return Dish(
         id: DatabaseHelper.stringValue(fields['dish_id']),
         name: fields['name'] as String? ?? '',
-        categoryId: fields['category_id'] as String? ?? '',
-        category: fields['category'] as String? ?? '',
+        categoryId: categoryId,
+        category: category,
         basePrice: DatabaseHelper.doubleValue(fields['base_price']) ?? 0.0,
         baseFoodCost: DatabaseHelper.doubleValue(fields['base_food_cost']) ?? 0.0,
         standardPortionSize: DatabaseHelper.doubleValue(fields['standard_portion_size']) ?? 0.0,
@@ -159,18 +167,17 @@ class DishDatabaseService {
     try {
       final result = await _baseService.executeQuery(
         '''INSERT INTO dishes (
-          name, category_id, category, base_price, base_food_cost,
+          name, category_id, base_price, base_food_cost,
           standard_portion_size, description, image_url, dietary_tags,
           item_type, is_active, ingredients
         ) VALUES (
-          :name, :categoryId, :category, :basePrice, :baseFoodCost,
+          :name, :categoryId, :basePrice, :baseFoodCost,
           :standardPortionSize, :description, :imageUrl, :dietaryTags,
           :itemType, :isActive, :ingredients
         )''',
         {
           'name': dish.name,
           'categoryId': dish.categoryId,
-          'category': dish.category,
           'basePrice': dish.basePrice,
           'baseFoodCost': dish.baseFoodCost,
           'standardPortionSize': dish.standardPortionSize,
@@ -202,7 +209,6 @@ class DishDatabaseService {
         '''UPDATE dishes SET
           name = :name,
           category_id = :categoryId,
-          category = :category,
           base_price = :basePrice,
           base_food_cost = :baseFoodCost,
           standard_portion_size = :standardPortionSize,
@@ -217,7 +223,6 @@ class DishDatabaseService {
         {
           'name': dish.name,
           'categoryId': dish.categoryId,
-          'category': dish.category,
           'basePrice': dish.basePrice,
           'baseFoodCost': dish.baseFoodCost,
           'standardPortionSize': dish.standardPortionSize,

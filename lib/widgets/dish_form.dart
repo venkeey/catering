@@ -61,9 +61,13 @@ class _DishFormState extends State<DishForm> {
     _imageUrlController =
         TextEditingController(text: widget.dish?.imageUrl ?? '');
     if (widget.dish != null) {
-      _selectedCategory = widget.dish!.category;
+      _selectedCategory = _categories.contains(widget.dish!.category) 
+          ? widget.dish!.category 
+          : _categories.first;
       _selectedDietaryTags = List.from(widget.dish!.dietaryTags);
-      _selectedItemType = widget.dish!.itemType;
+      _selectedItemType = _itemTypes.contains(widget.dish!.itemType)
+          ? widget.dish!.itemType
+          : _itemTypes.first;
       _isActive = widget.dish!.isActive;
       _ingredients = Map.from(widget.dish!.ingredients);
     }

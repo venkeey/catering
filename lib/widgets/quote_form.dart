@@ -880,7 +880,8 @@ class _QuoteFormState extends State<QuoteForm> {
       }
       
       // Generate PDF using the service
-      final file = await PdfServiceSimple.generateQuotePdf(
+      final pdfService = PdfServiceSimple.create();
+      final file = await pdfService.generateQuotePdf(
         quote: quote,
         client: client,
         event: event,
@@ -1530,7 +1531,8 @@ class _QuoteFormState extends State<QuoteForm> {
       }
 
       // Generate PDF
-      final file = await PdfServiceSimple.generateQuotePdf(
+      final pdfService = PdfServiceSimple.create();
+      final file = await pdfService.generateQuotePdf(
         quote: quote,
         client: client,
         event: event,

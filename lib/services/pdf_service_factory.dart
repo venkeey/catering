@@ -57,8 +57,11 @@ class PdfServiceFactory {
       print('Error in PDF service factory: $e');
       print('Falling back to simple PDF service');
       
-      // Fallback to the simple implementation if the regular one fails
-      return PdfServiceSimple.generateQuotePdf(
+      // If both attempts fail, fall back to PdfServiceSimple
+      print('Error generating PDF with PdfService: $e');
+      print('Falling back to PdfServiceSimple');
+      final pdfService = PdfServiceSimple.create();
+      return pdfService.generateQuotePdf(
         quote: quote,
         client: client,
         event: event,

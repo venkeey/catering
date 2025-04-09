@@ -32,7 +32,8 @@ class PdfService {
       // If loading fonts fails, fall back to PdfServiceSimple
       print('Error creating PDF with Roboto fonts: $e');
       print('Falling back to PdfServiceSimple');
-      final pdfBytes = await PdfServiceSimple.generateQuotePdf(
+      final pdfService = PdfServiceSimple.create();
+      final pdfBytes = await pdfService.generateQuotePdf(
         quote: quote,
         client: client,
         event: event,
