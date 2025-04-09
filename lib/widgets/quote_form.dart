@@ -2650,7 +2650,9 @@ class _QuoteFormState extends State<QuoteForm> {
                                 value: null,
                                 child: Text('All Categories'),
                               ),
-                              ...dishes.map((dish) => dish.category).toSet().map((category) {
+                              ...dishes.map((dish) => 
+                                dish.category.trim().isEmpty ? "Uncategorized" : dish.category
+                              ).toSet().map((category) {
                                 return DropdownMenuItem<String>(
                                   value: category,
                                   child: Text(category),
@@ -2774,8 +2776,38 @@ class _QuoteFormState extends State<QuoteForm> {
   Widget _buildAvailableDishesList(List<Dish> dishes) {
     debugPrint('QuoteForm: Building available dishes list with ${dishes.length} dishes');
     
+    // Debug dish categories
+    final allCategories = dishes.map((d) => d.category).toSet();
+    debugPrint('QuoteForm: Found categories: ${allCategories.join(', ')}');
+    
+    // First, let's assign categories to dishes that don't have one
+    final categorizedDishes = dishes.map((dish) {
+      if (dish.category == null || dish.category.trim().isEmpty) {
+        // Try to determine category from categoryId
+        String category = "Uncategorized";
+        if (dish.categoryId.isNotEmpty) {
+          final categoryId = int.tryParse(dish.categoryId);
+          if (categoryId != null && categoryId >= 1 && categoryId <= 6) {
+            final categories = [
+              'Starters',
+              'Main Course',
+              'Non-Veg Main Course',
+              'Rice & Breads',
+              'Desserts',
+              'Beverages',
+            ];
+            category = categories[categoryId - 1];
+          }
+        }
+        
+        // Create a new dish with the assigned category
+        return dish.copyWith(category: category);
+      }
+      return dish;
+    }).toList();
+    
     // Filter dishes based on search query and category
-    final filteredDishes = dishes.where((dish) {
+    final filteredDishes = categorizedDishes.where((dish) {
       final matchesSearch = _searchQuery.isEmpty || 
                            dish.name.toLowerCase().contains(_searchQuery) ||
                            dish.category.toLowerCase().contains(_searchQuery) ||
@@ -2791,25 +2823,49 @@ class _QuoteFormState extends State<QuoteForm> {
     // Group dishes by category
     final dishesByCategory = <String, List<Dish>>{};
     for (final dish in filteredDishes) {
-      if (!dishesByCategory.containsKey(dish.category)) {
-        dishesByCategory[dish.category] = [];
+      // Use "Uncategorized" as fallback if category is empty or null
+      String category = dish.category;
+      if (category.trim().isEmpty) {
+        category = "Uncategorized";
       }
-      dishesByCategory[dish.category]!.add(dish);
+      
+      if (!dishesByCategory.containsKey(category)) {
+        dishesByCategory[category] = [];
+      }
+      dishesByCategory[category]!.add(dish);
+      
+      // Debug each dish's category assignment
+      debugPrint('QuoteForm: Assigned dish "${dish.name}" to category "$category" (original: "${dish.category}")');
     }
     
+    // Sort categories alphabetically for better organization
+    final sortedCategories = dishesByCategory.keys.toList()..sort();
+    
     debugPrint('QuoteForm: Grouped dishes into ${dishesByCategory.length} categories');
-    for (final category in dishesByCategory.keys) {
-      debugPrint('QuoteForm: Category $category has ${dishesByCategory[category]!.length} dishes');
+    for (final category in sortedCategories) {
+      debugPrint('QuoteForm: Category "$category" has ${dishesByCategory[category]!.length} dishes');
     }
     
     return ListView.builder(
-      itemCount: dishesByCategory.length,
+      itemCount: sortedCategories.length,
       itemBuilder: (context, index) {
-        final category = dishesByCategory.keys.elementAt(index);
+        final category = sortedCategories[index];
         final categoryDishes = dishesByCategory[category]!;
         
+        // Sort dishes alphabetically within each category
+        categoryDishes.sort((a, b) => a.name.compareTo(b.name));
+        
         return ExpansionTile(
-          title: Text(category),
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(category),
+              Text('${categoryDishes.length} items', 
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+          initiallyExpanded: _selectedCategory != null && _selectedCategory == category,
           children: categoryDishes.map((dish) {
             final isSelected = _selectedDishes.containsKey(dish.id) || 
                               _percentageChoiceDishes.containsKey(dish.id);
@@ -2822,6 +2878,9 @@ class _QuoteFormState extends State<QuoteForm> {
                 : const Icon(Icons.add_circle_outline),
               onTap: () {
                 if (!isSelected) {
+                  _toggleDishSelection(dish.id);
+                } else {
+                  // Allow toggling off by tapping again
                   _toggleDishSelection(dish.id);
                 }
               },
@@ -2845,77 +2904,115 @@ class _QuoteFormState extends State<QuoteForm> {
       );
     }
     
+    // Group selected dishes by category
+    final dishesByCategory = <String, List<Dish>>{};
+    for (final dish in selectedDishes) {
+      // Use "Uncategorized" as fallback if category is empty
+      final category = dish.category.trim().isEmpty ? "Uncategorized" : dish.category;
+      if (!dishesByCategory.containsKey(category)) {
+        dishesByCategory[category] = [];
+      }
+      dishesByCategory[category]!.add(dish);
+    }
+    
+    // Sort categories alphabetically
+    final sortedCategories = dishesByCategory.keys.toList()..sort();
+    
+    debugPrint('QuoteForm: Grouped selected dishes into ${dishesByCategory.length} categories');
+    for (final category in sortedCategories) {
+      debugPrint('QuoteForm: Selected category "$category" has ${dishesByCategory[category]!.length} dishes');
+    }
+    
     return ListView.builder(
-      itemCount: selectedDishes.length,
+      itemCount: sortedCategories.length,
       itemBuilder: (context, index) {
-        final dish = selectedDishes[index];
-        final isPercentageChoice = dish.itemType == 'PercentageChoice';
-        final quantity = isPercentageChoice 
-          ? _percentageChoiceDishes[dish.id] ?? 100.0
-          : _selectedDishes[dish.id] ?? 1.0;
+        final category = sortedCategories[index];
+        final categoryDishes = dishesByCategory[category]!;
         
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-          child: ListTile(
-            title: Text(dish.name),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${dish.category} - ₹${dish.baseFoodCost.toStringAsFixed(2)}'),
-                if (dish.description != null && dish.description!.isNotEmpty)
-                  Text(
-                    dish.description!,
-                    style: const TextStyle(fontSize: 12),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (isPercentageChoice)
-                  SizedBox(
-                    width: 80,
-                    child: TextFormField(
-                      initialValue: quantity.toString(),
-                      decoration: const InputDecoration(
-                        labelText: '%',
-                        suffixText: '%',
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (value) {
-                        final percentage = double.tryParse(value);
-                        if (percentage != null) {
-                          _updatePercentageChoice(dish.id, percentage);
-                        }
-                      },
-                    ),
-                  )
-                else
-                  SizedBox(
-                    width: 80,
-                    child: TextFormField(
-                      initialValue: quantity.toString(),
-                      decoration: const InputDecoration(
-                        labelText: 'Qty',
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (value) {
-                        final newQuantity = double.tryParse(value);
-                        if (newQuantity != null) {
-                          _updateDishQuantity(dish.id, newQuantity);
-                        }
-                      },
-                    ),
-                  ),
-                IconButton(
-                  icon: const Icon(Icons.delete),
-                  onPressed: () => _toggleDishSelection(dish.id),
-                ),
-              ],
-            ),
+        // Sort dishes alphabetically within each category
+        categoryDishes.sort((a, b) => a.name.compareTo(b.name));
+        
+        return ExpansionTile(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(category),
+              Text('${categoryDishes.length} items', 
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
           ),
+          initiallyExpanded: true,
+          children: categoryDishes.map((dish) {
+            final isPercentageChoice = dish.itemType == 'PercentageChoice';
+            final quantity = isPercentageChoice 
+              ? _percentageChoiceDishes[dish.id] ?? 100.0
+              : _selectedDishes[dish.id] ?? 1.0;
+            
+            return Card(
+              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+              child: ListTile(
+                title: Text(dish.name),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('₹${dish.baseFoodCost.toStringAsFixed(2)}'),
+                    if (dish.description != null && dish.description!.isNotEmpty)
+                      Text(
+                        dish.description!,
+                        style: const TextStyle(fontSize: 12),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isPercentageChoice)
+                      SizedBox(
+                        width: 80,
+                        child: TextFormField(
+                          initialValue: quantity.toString(),
+                          decoration: const InputDecoration(
+                            labelText: '%',
+                            suffixText: '%',
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) {
+                            final percentage = double.tryParse(value);
+                            if (percentage != null) {
+                              _updatePercentageChoice(dish.id, percentage);
+                            }
+                          },
+                        ),
+                      )
+                    else
+                      SizedBox(
+                        width: 80,
+                        child: TextFormField(
+                          initialValue: quantity.toString(),
+                          decoration: const InputDecoration(
+                            labelText: 'Qty',
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) {
+                            final newQuantity = double.tryParse(value);
+                            if (newQuantity != null) {
+                              _updateDishQuantity(dish.id, newQuantity);
+                            }
+                          },
+                        ),
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.delete),
+                      onPressed: () => _toggleDishSelection(dish.id),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
         );
       },
     );
