@@ -32,7 +32,7 @@ class PdfService {
       // If loading fonts fails, fall back to PdfServiceSimple
       print('Error creating PDF with Roboto fonts: $e');
       print('Falling back to PdfServiceSimple');
-      return PdfServiceSimple.generateQuotePdf(
+      final pdfBytes = await PdfServiceSimple.generateQuotePdf(
         quote: quote,
         client: client,
         event: event,
@@ -40,6 +40,11 @@ class PdfService {
         dishQuantities: dishQuantities,
         percentageChoices: percentageChoices,
       );
+      
+      // Convert Uint8List to File
+      final file = await FileUtils.createSafeFile('quote_${quote.id}.pdf');
+      await file.writeAsBytes(pdfBytes);
+      return file;
     }
 
     // Add pages to the PDF

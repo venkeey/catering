@@ -3,6 +3,7 @@ import '../../models/quote_item.dart';
 import '../../utils/database_helper.dart';
 import 'base_database_service.dart';
 import 'dish_database_service.dart';
+import 'dart:math';
 
 /// Service for quote item-related database operations
 class QuoteItemDatabaseService {
@@ -25,15 +26,19 @@ class QuoteItemDatabaseService {
         final dish = await _dishService.getDish(fields['dish_id'].toString());
         
         return QuoteItem(
-          id: DatabaseHelper.stringValue(fields['item_id']),
-          quoteId: DatabaseHelper.stringValue(fields['quote_id']) ?? '',
-          dishId: DatabaseHelper.stringValue(fields['dish_id']) ?? '',
-          quotedPortionSizeGrams: DatabaseHelper.doubleValue(fields['quoted_portion_size_grams']) ?? 0.0,
-          quotedBaseFoodCostPerServing: DatabaseHelper.doubleValue(fields['quoted_base_food_cost_per_serving']) ?? 0.0,
-          percentageTakeRate: DatabaseHelper.doubleValue(fields['percentage_take_rate']) ?? 0.0,
-          estimatedServings: DatabaseHelper.intValue(fields['estimated_servings']) ?? 0,
-          estimatedTotalWeightGrams: DatabaseHelper.doubleValue(fields['estimated_total_weight_grams']) ?? 0.0,
-          estimatedItemFoodCost: DatabaseHelper.doubleValue(fields['estimated_item_food_cost']) ?? 0.0,
+          id: DatabaseHelper.bigIntValue(fields['item_id']),
+          quoteId: DatabaseHelper.bigIntValue(fields['quote_id']) ?? BigInt.from(0),
+          dishId: DatabaseHelper.bigIntValue(fields['dish_id']) ?? BigInt.from(0),
+          dishName: fields['dish_name'] as String? ?? '',
+          quantity: DatabaseHelper.doubleValue(fields['quantity']) ?? 0.0,
+          unitPrice: DatabaseHelper.doubleValue(fields['unit_price']) ?? 0.0,
+          totalPrice: DatabaseHelper.doubleValue(fields['total_price']) ?? 0.0,
+          quotedPortionSizeGrams: DatabaseHelper.doubleValue(fields['quoted_portion_size_grams']),
+          quotedBaseFoodCostPerServing: DatabaseHelper.doubleValue(fields['quoted_base_food_cost_per_serving']),
+          percentageTakeRate: DatabaseHelper.doubleValue(fields['percentage_take_rate']),
+          estimatedServings: DatabaseHelper.intValue(fields['estimated_servings']),
+          estimatedTotalWeightGrams: DatabaseHelper.doubleValue(fields['estimated_total_weight_grams']),
+          estimatedItemFoodCost: DatabaseHelper.doubleValue(fields['estimated_item_food_cost']),
           dishObject: dish,
         );
       }));
@@ -52,7 +57,7 @@ class QuoteItemDatabaseService {
     try {
       final results = await _baseService.executeQuery(
         'SELECT * FROM quote_items WHERE quote_id = :quoteId',
-        {'quoteId': quoteId}
+        {'quoteId': BigInt.parse(quoteId).toString()}
       );
       
       return Future.wait(results.rows.map((row) async {
@@ -60,15 +65,19 @@ class QuoteItemDatabaseService {
         final dish = await _dishService.getDish(fields['dish_id'].toString());
         
         return QuoteItem(
-          id: DatabaseHelper.stringValue(fields['item_id']),
-          quoteId: DatabaseHelper.stringValue(fields['quote_id']) ?? '',
-          dishId: DatabaseHelper.stringValue(fields['dish_id']) ?? '',
-          quotedPortionSizeGrams: DatabaseHelper.doubleValue(fields['quoted_portion_size_grams']) ?? 0.0,
-          quotedBaseFoodCostPerServing: DatabaseHelper.doubleValue(fields['quoted_base_food_cost_per_serving']) ?? 0.0,
-          percentageTakeRate: DatabaseHelper.doubleValue(fields['percentage_take_rate']) ?? 0.0,
-          estimatedServings: DatabaseHelper.intValue(fields['estimated_servings']) ?? 0,
-          estimatedTotalWeightGrams: DatabaseHelper.doubleValue(fields['estimated_total_weight_grams']) ?? 0.0,
-          estimatedItemFoodCost: DatabaseHelper.doubleValue(fields['estimated_item_food_cost']) ?? 0.0,
+          id: DatabaseHelper.bigIntValue(fields['quote_item_id']),
+          quoteId: DatabaseHelper.bigIntValue(fields['quote_id']) ?? BigInt.from(0),
+          dishId: DatabaseHelper.bigIntValue(fields['dish_id']) ?? BigInt.from(0),
+          dishName: fields['dish_name'] as String? ?? '',
+          quantity: DatabaseHelper.doubleValue(fields['quantity']) ?? 0.0,
+          unitPrice: DatabaseHelper.doubleValue(fields['unit_price']) ?? 0.0,
+          totalPrice: DatabaseHelper.doubleValue(fields['total_price']) ?? 0.0,
+          quotedPortionSizeGrams: DatabaseHelper.doubleValue(fields['quoted_portion_size_grams']),
+          quotedBaseFoodCostPerServing: DatabaseHelper.doubleValue(fields['quoted_base_food_cost_per_serving']),
+          percentageTakeRate: DatabaseHelper.doubleValue(fields['percentage_take_rate']),
+          estimatedServings: DatabaseHelper.intValue(fields['estimated_servings']),
+          estimatedTotalWeightGrams: DatabaseHelper.doubleValue(fields['estimated_total_weight_grams']),
+          estimatedItemFoodCost: DatabaseHelper.doubleValue(fields['estimated_item_food_cost']),
           dishObject: dish,
         );
       }));
@@ -80,37 +89,46 @@ class QuoteItemDatabaseService {
 
   /// Add a new quote item to the database
   Future<String> addQuoteItem(QuoteItem item) async {
+    debugPrint('QuoteItemDatabaseService: Attempting to add quote item');
+    debugPrint('QuoteItemDatabaseService: Item data: $item');
+    
     if (!_baseService.isConnected) {
+      debugPrint('QuoteItemDatabaseService: Database not connected');
       throw Exception('Database not connected');
     }
 
     try {
+      // First, let's check the actual table structure
+      final tableInfo = await _baseService.executeQuery('DESCRIBE quote_items');
+      debugPrint('QuoteItemDatabaseService: Table structure: ${tableInfo.rows.map((row) => row.assoc()).toList()}');
+      
+      // Use the correct column names based on the actual table structure
       final result = await _baseService.executeQuery(
-        '''INSERT INTO quote_items (
-          quote_id, dish_id, quoted_portion_size_grams, quoted_base_food_cost_per_serving,
-          percentage_take_rate, estimated_servings, estimated_total_weight_grams,
-          estimated_item_food_cost
-        ) VALUES (
-          :quoteId, :dishId, :portionSize, :foodCost,
-          :takeRate, :servings, :totalWeight,
-          :itemFoodCost
-        )''',
+        'INSERT INTO quote_items (quote_id, dish_id, quantity, unit_price, total_price, '
+        'quoted_portion_size_grams, quoted_base_food_cost_per_serving, estimated_servings, '
+        'estimated_total_weight_grams, estimated_item_food_cost, percentage_take_rate) '
+        'VALUES (:quoteId, :dishId, :quantity, :unitPrice, :totalPrice, :portionSize, '
+        ':foodCost, :servings, :totalWeight, :itemFoodCost, :takeRate)',
         {
-          'quoteId': item.quoteId,
-          'dishId': item.dishId,
+          'quoteId': item.quoteId.toString(),
+          'dishId': item.dishId.toString(),
+          'quantity': item.quantity,
+          'unitPrice': item.unitPrice,
+          'totalPrice': item.totalPrice,
           'portionSize': item.quotedPortionSizeGrams,
           'foodCost': item.quotedBaseFoodCostPerServing,
-          'takeRate': item.percentageTakeRate,
           'servings': item.estimatedServings,
           'totalWeight': item.estimatedTotalWeightGrams,
           'itemFoodCost': item.estimatedItemFoodCost,
+          'takeRate': item.percentageTakeRate,
         }
       );
 
-      final insertId = result.lastInsertID.toString();
-      return insertId;
+      final id = result.lastInsertID.toString();
+      debugPrint('QuoteItemDatabaseService: Successfully added quote item with ID: $id');
+      return id;
     } catch (e) {
-      debugPrint('Error adding quote item: $e');
+      debugPrint('QuoteItemDatabaseService: Error adding quote item: $e');
       rethrow;
     }
   }
@@ -118,10 +136,14 @@ class QuoteItemDatabaseService {
   /// Update an existing quote item in the database
   Future<void> updateQuoteItem(QuoteItem item) async {
     if (!_baseService.isConnected) {
+      debugPrint('ERROR: Database not connected when trying to update quote item');
       throw Exception('Database not connected');
     }
 
     try {
+      debugPrint('Attempting to update quote item with ID: ${item.id}');
+      debugPrint('Update parameters: ${item.toMap()}');
+      
       final result = await _baseService.executeQuery(
         '''UPDATE quote_items SET
           quote_id = :quoteId,
@@ -147,33 +169,36 @@ class QuoteItemDatabaseService {
         }
       );
 
+      debugPrint('Update result - affected rows: ${result.affectedRows}');
+      
       if (result.affectedRows.toInt() <= 0) {
+        debugPrint('WARNING: No rows were updated for quote item ID: ${item.id}');
         throw Exception('No quote item updated with ID: ${item.id}');
       }
+      
+      debugPrint('Successfully updated quote item with ID: ${item.id}');
     } catch (e) {
-      debugPrint('Error updating quote item: $e');
+      debugPrint('ERROR updating quote item: $e');
       rethrow;
     }
   }
 
   /// Delete a quote item from the database
-  Future<void> deleteQuoteItem(String id) async {
+  Future<bool> deleteQuoteItem(String id) async {
     if (!_baseService.isConnected) {
       throw Exception('Database not connected');
     }
 
     try {
       final result = await _baseService.executeQuery(
-        'DELETE FROM quote_items WHERE item_id = :id',
-        {'id': id}
+        'DELETE FROM quote_items WHERE quote_item_id = :id',
+        {'id': BigInt.parse(id).toString()}
       );
 
-      if (result.affectedRows.toInt() <= 0) {
-        throw Exception('No quote item deleted with ID: $id');
-      }
+      return result.affectedRows! > BigInt.zero;
     } catch (e) {
       debugPrint('Error deleting quote item: $e');
-      rethrow;
+      return false;
     }
   }
 }

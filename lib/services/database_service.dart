@@ -27,7 +27,7 @@ class DatabaseService implements DatabaseServiceInterface {
   factory DatabaseService() => _instance;
   
   // Base service and specialized services
-  final BaseDatabaseService _baseService = BaseDatabaseService();
+  final BaseDatabaseService _baseService;
   late final ClientDatabaseService _clientService;
   late final EventDatabaseService _eventService;
   late final DishDatabaseService _dishService;
@@ -39,18 +39,20 @@ class DatabaseService implements DatabaseServiceInterface {
   late final SupplierDatabaseService _supplierService;
   late final PurchaseOrderDatabaseService _purchaseOrderService;
 
-  DatabaseService._internal() {
+  DatabaseService._internal() : _baseService = BaseDatabaseService() {
     // Initialize specialized services
     _dishService = DishDatabaseService(_baseService);
     _packageItemService = PackageItemDatabaseService(_baseService, _dishService);
     _menuPackageService = MenuPackageDatabaseService(_baseService, _packageItemService);
-    _quoteItemService = QuoteItemDatabaseService(_baseService, _dishService);
-    _quoteService = QuoteDatabaseService(_baseService, _quoteItemService);
     _clientService = ClientDatabaseService(_baseService);
     _eventService = EventDatabaseService(_baseService);
     _inventoryService = InventoryDatabaseService(_baseService);
     _supplierService = SupplierDatabaseService(_baseService);
     _purchaseOrderService = PurchaseOrderDatabaseService(_baseService);
+    
+    // Initialize quote services
+    _quoteItemService = QuoteItemDatabaseService(_baseService, _dishService);
+    _quoteService = QuoteDatabaseService(_baseService, _quoteItemService);
   }
 
   // Connection properties
@@ -201,6 +203,11 @@ class DatabaseService implements DatabaseServiceInterface {
   }
   
   @override
+  Future<List<Quote>> getQuotesByClient(String clientId) async {
+    return await _quoteService.getQuotesByClient(clientId);
+  }
+  
+  @override
   Future<String> addQuote(Quote quote) async {
     return await _quoteService.addQuote(quote);
   }
@@ -228,7 +235,8 @@ class DatabaseService implements DatabaseServiceInterface {
   
   @override
   Future<String> addQuoteItem(QuoteItem item) async {
-    return await _quoteItemService.addQuoteItem(item);
+    final result = await _quoteItemService.addQuoteItem(item);
+    return result.toString();
   }
   
   @override

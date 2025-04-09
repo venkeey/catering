@@ -512,9 +512,9 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
             }
             
             return Quote(
-              id: quoteData['quote_id']?.toString(),
-              eventId: quoteData['event_id']?.toString(),
-              clientId: quoteData['client_id']?.toString() ?? '',
+              id: quoteData['quote_id'] != null ? BigInt.parse(quoteData['quote_id'].toString()) : BigInt.from(0),
+              eventId: quoteData['event_id'] != null ? BigInt.parse(quoteData['event_id'].toString()) : null,
+              clientId: quoteData['client_id'] != null ? BigInt.parse(quoteData['client_id'].toString()) : BigInt.from(0),
               quoteDate: quoteData['quote_date'] != null ? 
                   DateTime.parse(quoteData['quote_date']) : DateTime.now(),
               totalGuestCount: parseIntSafely(quoteData['total_guest_count']),
@@ -591,9 +591,13 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
             debugPrint('Processing quote item: ${quoteItemData['item_id']}');
             
             return QuoteItem(
-              id: quoteItemData['item_id']?.toString(),
-              quoteId: quoteItemData['quote_id']?.toString() ?? '0',
-              dishId: quoteItemData['dish_id']?.toString() ?? '0',
+              id: quoteItemData['item_id'] != null ? BigInt.parse(quoteItemData['item_id'].toString()) : BigInt.from(0),
+              quoteId: quoteItemData['quote_id'] != null ? BigInt.parse(quoteItemData['quote_id'].toString()) : BigInt.from(0),
+              dishId: quoteItemData['dish_id'] != null ? BigInt.parse(quoteItemData['dish_id'].toString()) : BigInt.from(0),
+              dishName: quoteItemData['dish_name'] ?? '',
+              quantity: parseDoubleSafely(quoteItemData['quantity']),
+              unitPrice: parseDoubleSafely(quoteItemData['unit_price']),
+              totalPrice: parseDoubleSafely(quoteItemData['total_price']),
               quotedPortionSizeGrams: parseDoubleSafely(quoteItemData['quoted_portion_size_grams']),
               quotedBaseFoodCostPerServing: parseDoubleSafely(quoteItemData['quoted_base_food_cost_per_serving']),
               percentageTakeRate: parseDoubleSafely(quoteItemData['percentage_take_rate']),
@@ -665,9 +669,13 @@ class SimpleWebDatabaseService implements WebDatabaseServiceInterface {
             debugPrint('Processing quote item for quote: ${quoteItemData['item_id']}');
             
             return QuoteItem(
-              id: quoteItemData['item_id']?.toString(),
-              quoteId: quoteItemData['quote_id']?.toString() ?? quoteId, // Use the provided quoteId as fallback
-              dishId: quoteItemData['dish_id']?.toString() ?? '0',
+              id: quoteItemData['item_id'] != null ? BigInt.parse(quoteItemData['item_id'].toString()) : BigInt.from(0),
+              quoteId: quoteItemData['quote_id'] != null ? BigInt.parse(quoteItemData['quote_id'].toString()) : BigInt.from(0),
+              dishId: quoteItemData['dish_id'] != null ? BigInt.parse(quoteItemData['dish_id'].toString()) : BigInt.from(0),
+              dishName: quoteItemData['dish_name'] ?? '',
+              quantity: parseDoubleSafely(quoteItemData['quantity']),
+              unitPrice: parseDoubleSafely(quoteItemData['unit_price']),
+              totalPrice: parseDoubleSafely(quoteItemData['total_price']),
               quotedPortionSizeGrams: parseDoubleSafely(quoteItemData['quoted_portion_size_grams']),
               quotedBaseFoodCostPerServing: parseDoubleSafely(quoteItemData['quoted_base_food_cost_per_serving']),
               percentageTakeRate: parseDoubleSafely(quoteItemData['percentage_take_rate']),

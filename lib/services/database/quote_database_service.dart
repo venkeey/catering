@@ -4,6 +4,7 @@ import '../../models/quote_item.dart';
 import '../../utils/database_helper.dart';
 import 'base_database_service.dart';
 import 'quote_item_database_service.dart';
+import 'dart:math';
 
 /// Service for quote-related database operations
 class QuoteDatabaseService {
@@ -28,9 +29,9 @@ class QuoteDatabaseService {
         final items = await _quoteItemService.getQuoteItemsForQuote(fields['quote_id'].toString());
 
         return Quote(
-          id: DatabaseHelper.stringValue(fields['quote_id']),
-          eventId: DatabaseHelper.stringValue(fields['event_id']),
-          clientId: DatabaseHelper.stringValue(fields['client_id']) ?? '',
+          id: DatabaseHelper.bigIntValue(fields['quote_id']) ?? BigInt.from(0),
+          eventId: DatabaseHelper.bigIntValue(fields['event_id']),
+          clientId: DatabaseHelper.bigIntValue(fields['client_id']) ?? BigInt.from(0),
           quoteDate: DatabaseHelper.dateTimeValue(fields['quote_date']) ?? DateTime.now(),
           totalGuestCount: DatabaseHelper.intValue(fields['total_guest_count']) ?? 0,
           guestsMale: DatabaseHelper.intValue(fields['guests_male']) ?? 0,
@@ -75,9 +76,9 @@ class QuoteDatabaseService {
       final quoteItems = await _quoteItemService.getQuoteItemsForQuote(id);
       
       return Quote(
-        id: DatabaseHelper.stringValue(fields['quote_id']) ?? '',
-        eventId: DatabaseHelper.stringValue(fields['event_id']),
-        clientId: DatabaseHelper.stringValue(fields['client_id']) ?? '',
+        id: DatabaseHelper.bigIntValue(fields['quote_id']) ?? BigInt.from(0),
+        eventId: DatabaseHelper.bigIntValue(fields['event_id']),
+        clientId: DatabaseHelper.bigIntValue(fields['client_id']) ?? BigInt.from(0),
         quoteDate: DatabaseHelper.dateTimeValue(fields['quote_date']) ?? DateTime.now(),
         totalGuestCount: DatabaseHelper.intValue(fields['total_guest_count']) ?? 0,
         guestsMale: DatabaseHelper.intValue(fields['guests_male']) ?? 0,
@@ -108,25 +109,25 @@ class QuoteDatabaseService {
     }
 
     try {
-      // Start a transaction
-      final conn = _baseService.connection!;
-      
-      // Insert the quote
-      final result = await conn.execute(
+      final result = await _baseService.executeQuery(
         '''INSERT INTO quotes (
           event_id, client_id, quote_date, total_guest_count,
-          guests_male, guests_female, guests_elderly, guests_youth, guests_child,
-          calculation_method, overhead_percentage, calculated_total_food_cost,
-          calculated_overhead_cost, grand_total, notes, terms_and_conditions, status
+          guests_male, guests_female, guests_elderly,
+          guests_youth, guests_child, calculation_method,
+          overhead_percentage, calculated_total_food_cost,
+          calculated_overhead_cost, grand_total, notes,
+          terms_and_conditions, status
         ) VALUES (
           :eventId, :clientId, :quoteDate, :totalGuestCount,
-          :guestsMale, :guestsFemale, :guestsElderly, :guestsYouth, :guestsChild,
-          :calculationMethod, :overheadPercentage, :calculatedTotalFoodCost,
-          :calculatedOverheadCost, :grandTotal, :notes, :termsAndConditions, :status
+          :guestsMale, :guestsFemale, :guestsElderly,
+          :guestsYouth, :guestsChild, :calculationMethod,
+          :overheadPercentage, :calculatedTotalFoodCost,
+          :calculatedOverheadCost, :grandTotal, :notes,
+          :termsAndConditions, :status
         )''',
         {
-          'eventId': quote.eventId,
-          'clientId': quote.clientId,
+          'eventId': quote.eventId?.toString(),
+          'clientId': quote.clientId.toString(),
           'quoteDate': quote.quoteDate.toIso8601String(),
           'totalGuestCount': quote.totalGuestCount,
           'guestsMale': quote.guestsMale,
@@ -145,17 +146,8 @@ class QuoteDatabaseService {
         }
       );
 
-      final quoteId = result.lastInsertID.toString();
-      
-      // Insert quote items if any
-      if (quote.items.isNotEmpty) {
-        for (var item in quote.items) {
-          final quoteItem = item.copyWith(quoteId: quoteId);
-          await _quoteItemService.addQuoteItem(quoteItem);
-        }
-      }
-      
-      return quoteId;
+      final insertId = result.rows.first.typedColAt<BigInt>(0);
+      return insertId.toString();
     } catch (e) {
       debugPrint('Error adding quote: $e');
       rethrow;
@@ -163,17 +155,13 @@ class QuoteDatabaseService {
   }
 
   /// Update an existing quote in the database
-  Future<void> updateQuote(Quote quote) async {
+  Future<bool> updateQuote(Quote quote) async {
     if (!_baseService.isConnected) {
       throw Exception('Database not connected');
     }
 
     try {
-      // Start a transaction
-      final conn = _baseService.connection!;
-      
-      // Update the quote
-      final result = await conn.execute(
+      final result = await _baseService.executeQuery(
         '''UPDATE quotes SET
           event_id = :eventId,
           client_id = :clientId,
@@ -195,8 +183,8 @@ class QuoteDatabaseService {
           WHERE quote_id = :id
         ''',
         {
-          'eventId': quote.eventId,
-          'clientId': quote.clientId,
+          'eventId': quote.eventId?.toString(),
+          'clientId': quote.clientId.toString(),
           'quoteDate': quote.quoteDate.toIso8601String(),
           'totalGuestCount': quote.totalGuestCount,
           'guestsMale': quote.guestsMale,
@@ -212,57 +200,78 @@ class QuoteDatabaseService {
           'notes': quote.notes ?? '',
           'termsAndConditions': quote.termsAndConditions ?? '',
           'status': quote.status,
-          'id': quote.id,
+          'id': quote.id.toString(),
         }
       );
 
-      if (result.affectedRows.toInt() <= 0) {
-        throw Exception('No quote updated with ID: ${quote.id}');
-      }
-      
-      // Delete existing quote items
-      await conn.execute(
-        'DELETE FROM quote_items WHERE quote_id = :quoteId',
-        {'quoteId': quote.id}
-      );
-      
-      // Insert updated quote items
-      if (quote.items.isNotEmpty) {
-        for (var item in quote.items) {
-          final quoteItem = item.copyWith(quoteId: quote.id);
-          await _quoteItemService.addQuoteItem(quoteItem);
-        }
-      }
+      return result.affectedRows! > BigInt.zero;
     } catch (e) {
       debugPrint('Error updating quote: $e');
-      rethrow;
+      return false;
     }
   }
 
   /// Delete a quote from the database
-  Future<void> deleteQuote(String id) async {
+  Future<bool> deleteQuote(String id) async {
     if (!_baseService.isConnected) {
       throw Exception('Database not connected');
     }
 
     try {
-      // Delete quote items first (should cascade, but just to be safe)
-      await _baseService.executeQuery(
-        'DELETE FROM quote_items WHERE quote_id = :id',
-        {'id': id}
-      );
-      
-      // Delete the quote
       final result = await _baseService.executeQuery(
         'DELETE FROM quotes WHERE quote_id = :id',
-        {'id': id}
+        {'id': id.toString()}
       );
 
-      if (result.affectedRows.toInt() <= 0) {
-        throw Exception('No quote deleted with ID: $id');
-      }
+      return result.affectedRows! > BigInt.zero;
     } catch (e) {
       debugPrint('Error deleting quote: $e');
+      return false;
+    }
+  }
+
+  /// Get all quotes for a specific client
+  Future<List<Quote>> getQuotesByClient(String clientId) async {
+    if (!_baseService.isConnected) {
+      throw Exception('Database not connected');
+    }
+
+    try {
+      final results = await _baseService.executeQuery(
+        'SELECT * FROM quotes WHERE client_id = :clientId',
+        {'clientId': BigInt.parse(clientId)}
+      );
+
+      return Future.wait(results.rows.map((row) async {
+        final fields = DatabaseHelper.rowToMap(row.assoc());
+        
+        // Get quote items
+        final items = await _quoteItemService.getQuoteItemsForQuote(fields['quote_id'].toString());
+
+        return Quote(
+          id: DatabaseHelper.bigIntValue(fields['quote_id']) ?? BigInt.from(0),
+          eventId: DatabaseHelper.bigIntValue(fields['event_id']),
+          clientId: DatabaseHelper.bigIntValue(fields['client_id']) ?? BigInt.from(0),
+          quoteDate: DatabaseHelper.dateTimeValue(fields['quote_date']) ?? DateTime.now(),
+          totalGuestCount: DatabaseHelper.intValue(fields['total_guest_count']) ?? 0,
+          guestsMale: DatabaseHelper.intValue(fields['guests_male']) ?? 0,
+          guestsFemale: DatabaseHelper.intValue(fields['guests_female']) ?? 0,
+          guestsElderly: DatabaseHelper.intValue(fields['guests_elderly']) ?? 0,
+          guestsYouth: DatabaseHelper.intValue(fields['guests_youth']) ?? 0,
+          guestsChild: DatabaseHelper.intValue(fields['guests_child']) ?? 0,
+          calculationMethod: fields['calculation_method'] as String? ?? 'Simple',
+          overheadPercentage: DatabaseHelper.doubleValue(fields['overhead_percentage']) ?? 30.0,
+          calculatedTotalFoodCost: DatabaseHelper.doubleValue(fields['calculated_total_food_cost']) ?? 0.0,
+          calculatedOverheadCost: DatabaseHelper.doubleValue(fields['calculated_overhead_cost']) ?? 0.0,
+          grandTotal: DatabaseHelper.doubleValue(fields['grand_total']) ?? 0.0,
+          notes: fields['notes'] as String?,
+          termsAndConditions: fields['terms_and_conditions'] as String?,
+          status: fields['status'] as String? ?? 'Draft',
+          items: items,
+        );
+      }));
+    } catch (e) {
+      debugPrint('Error getting quotes by client: $e');
       rethrow;
     }
   }

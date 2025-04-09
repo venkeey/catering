@@ -2,9 +2,9 @@ import 'package:uuid/uuid.dart';
 import 'quote_item.dart';
 
 class Quote {
-  final String id;
-  final String? eventId;
-  final String clientId;
+  final BigInt id;
+  final BigInt? eventId;
+  final BigInt clientId;
   final DateTime quoteDate;
   final int totalGuestCount;
   final int guestsMale;
@@ -23,7 +23,7 @@ class Quote {
   final List<QuoteItem> items;
 
   Quote({
-    String? id,
+    BigInt? id,
     this.eventId,
     required this.clientId,
     required this.quoteDate,
@@ -42,13 +42,13 @@ class Quote {
     this.termsAndConditions,
     required this.status,
     required this.items,
-  }) : id = id ?? const Uuid().v4();
+  }) : id = id ?? BigInt.from(0);
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
-      'eventId': eventId,
-      'clientId': clientId,
+      'id': id.toString(),
+      'eventId': eventId?.toString(),
+      'clientId': clientId.toString(),
       'quoteDate': quoteDate.toIso8601String(),
       'totalGuestCount': totalGuestCount,
       'guestsMale': guestsMale,
@@ -70,9 +70,9 @@ class Quote {
 
   factory Quote.fromMap(Map<String, dynamic> map) {
     return Quote(
-      id: map['id'],
-      eventId: map['eventId'],
-      clientId: map['clientId'],
+      id: map['id'] != null ? BigInt.parse(map['id'].toString()) : BigInt.from(0),
+      eventId: map['eventId'] != null ? BigInt.parse(map['eventId'].toString()) : null,
+      clientId: map['clientId'] != null ? BigInt.parse(map['clientId'].toString()) : BigInt.from(0),
       quoteDate: map['quoteDate'] != null ? DateTime.parse(map['quoteDate']) : DateTime.now(),
       totalGuestCount: map['totalGuestCount'] ?? 0,
       guestsMale: map['guestsMale'] ?? 0,

@@ -25,16 +25,21 @@ class QuoteItemDatabaseService {
         final dish = await _dishService.getDish(fields['dish_id'].toString());
         
         return QuoteItem(
-          id: DatabaseHelper.stringValue(fields['item_id']),
-          quoteId: DatabaseHelper.stringValue(fields['quote_id']) ?? '',
-          dishId: DatabaseHelper.stringValue(fields['dish_id']) ?? '',
-          quotedPortionSizeGrams: DatabaseHelper.doubleValue(fields['quoted_portion_size_grams']) ?? 0.0,
-          quotedBaseFoodCostPerServing: DatabaseHelper.doubleValue(fields['quoted_base_food_cost_per_serving']) ?? 0.0,
-          percentageTakeRate: DatabaseHelper.doubleValue(fields['percentage_take_rate']) ?? 0.0,
-          estimatedServings: DatabaseHelper.intValue(fields['estimated_servings']) ?? 0,
-          estimatedTotalWeightGrams: DatabaseHelper.doubleValue(fields['estimated_total_weight_grams']) ?? 0.0,
-          estimatedItemFoodCost: DatabaseHelper.doubleValue(fields['estimated_item_food_cost']) ?? 0.0,
-          dishObject: dish,
+          id: DatabaseHelper.bigIntValue(fields['item_id']) ?? BigInt.zero,
+          quoteId: DatabaseHelper.bigIntValue(fields['quote_id']) ?? BigInt.zero,
+          dishId: DatabaseHelper.bigIntValue(fields['dish_id']) ?? BigInt.zero,
+          dishName: DatabaseHelper.stringValue(fields['dish_name']) ?? '',
+          quantity: DatabaseHelper.doubleValue(fields['quantity']) ?? 0.0,
+          unitPrice: DatabaseHelper.doubleValue(fields['unit_price']) ?? 0.0,
+          totalPrice: DatabaseHelper.doubleValue(fields['total_price']) ?? 0.0,
+          notes: DatabaseHelper.stringValue(fields['notes']),
+          quotedPortionSizeGrams: DatabaseHelper.doubleValue(fields['quoted_portion_size_grams']),
+          quotedBaseFoodCostPerServing: DatabaseHelper.doubleValue(fields['quoted_base_food_cost_per_serving']),
+          percentageTakeRate: DatabaseHelper.doubleValue(fields['percentage_take_rate']),
+          estimatedServings: DatabaseHelper.intValue(fields['estimated_servings']),
+          estimatedTotalWeightGrams: DatabaseHelper.doubleValue(fields['estimated_total_weight_grams']),
+          estimatedItemFoodCost: DatabaseHelper.doubleValue(fields['estimated_item_food_cost']),
+          dishObject: null, // This will be populated later when needed
         );
       }));
     } catch (e) {
@@ -60,15 +65,20 @@ class QuoteItemDatabaseService {
         final dish = await _dishService.getDish(fields['dish_id'].toString());
         
         return QuoteItem(
-          id: DatabaseHelper.stringValue(fields['item_id']),
-          quoteId: DatabaseHelper.stringValue(fields['quote_id']) ?? '',
-          dishId: DatabaseHelper.stringValue(fields['dish_id']) ?? '',
-          quotedPortionSizeGrams: DatabaseHelper.doubleValue(fields['quoted_portion_size_grams']) ?? 0.0,
-          quotedBaseFoodCostPerServing: DatabaseHelper.doubleValue(fields['quoted_base_food_cost_per_serving']) ?? 0.0,
-          percentageTakeRate: DatabaseHelper.doubleValue(fields['percentage_take_rate']) ?? 0.0,
-          estimatedServings: DatabaseHelper.intValue(fields['estimated_servings']) ?? 0,
-          estimatedTotalWeightGrams: DatabaseHelper.doubleValue(fields['estimated_total_weight_grams']) ?? 0.0,
-          estimatedItemFoodCost: DatabaseHelper.doubleValue(fields['estimated_item_food_cost']) ?? 0.0,
+          id: DatabaseHelper.bigIntValue(fields['item_id']) ?? BigInt.zero,
+          quoteId: DatabaseHelper.bigIntValue(fields['quote_id']) ?? BigInt.zero,
+          dishId: DatabaseHelper.bigIntValue(fields['dish_id']) ?? BigInt.zero,
+          dishName: DatabaseHelper.stringValue(fields['dish_name']) ?? '',
+          quantity: DatabaseHelper.doubleValue(fields['quantity']) ?? 0.0,
+          unitPrice: DatabaseHelper.doubleValue(fields['unit_price']) ?? 0.0,
+          totalPrice: DatabaseHelper.doubleValue(fields['total_price']) ?? 0.0,
+          notes: DatabaseHelper.stringValue(fields['notes']),
+          quotedPortionSizeGrams: DatabaseHelper.doubleValue(fields['quoted_portion_size_grams']),
+          quotedBaseFoodCostPerServing: DatabaseHelper.doubleValue(fields['quoted_base_food_cost_per_serving']),
+          percentageTakeRate: DatabaseHelper.doubleValue(fields['percentage_take_rate']),
+          estimatedServings: DatabaseHelper.intValue(fields['estimated_servings']),
+          estimatedTotalWeightGrams: DatabaseHelper.doubleValue(fields['estimated_total_weight_grams']),
+          estimatedItemFoodCost: DatabaseHelper.doubleValue(fields['estimated_item_food_cost']),
           dishObject: dish,
         );
       }));

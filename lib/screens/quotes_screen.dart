@@ -10,36 +10,59 @@ import '../services/pdf_service_simple.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class QuotesScreen extends StatelessWidget {
   const QuotesScreen({super.key});
 
   Future<void> _generateAndSharePdf(BuildContext context, Quote quote) async {
     try {
+      debugPrint('QuotesScreen: Starting PDF generation for quote ID: ${quote.id}');
       final appState = Provider.of<AppState>(context, listen: false);
-      final client = appState.clients.firstWhere((c) => c.id == quote.clientId);
+      
+      debugPrint('QuotesScreen: Looking for client with ID: ${quote.clientId}');
+      final client = appState.clients.firstWhere((c) => c.id.toString() == quote.clientId.toString());
+      debugPrint('QuotesScreen: Found client: ${client.clientName}');
+      
+      debugPrint('QuotesScreen: Looking for event with ID: ${quote.eventId}');
       final event = quote.eventId != null
-          ? appState.events.firstWhere((e) => e.id == quote.eventId)
+          ? appState.events.firstWhere((e) => e.id.toString() == quote.eventId.toString())
           : null;
+      debugPrint('QuotesScreen: Found event: ${event?.eventName ?? 'None'}');
       
       // Get selected dishes and quantities from quote items
-      final quoteItems = appState.getQuoteItemsForQuote(quote.id);
+      debugPrint('QuotesScreen: Getting quote items for quote ID: ${quote.id}');
+      final quoteItems = appState.getQuoteItemsForQuote(quote.id.toString());
+      debugPrint('QuotesScreen: Found ${quoteItems.length} quote items');
+      
       final selectedDishes = <Dish>[];
       final dishQuantities = <String, double>{};
       final percentageChoices = <String, double>{};
       
       for (final item in quoteItems) {
+        debugPrint('QuotesScreen: Processing quote item: ${item.dishName} (ID: ${item.dishId})');
         final dish = appState.getDishForQuoteItem(item);
         if (dish != null) {
+          debugPrint('QuotesScreen: Found dish: ${dish.name} (ID: ${dish.id})');
           selectedDishes.add(dish);
           if (dish.itemType == 'PercentageChoice') {
+            debugPrint('QuotesScreen: Adding percentage choice: ${item.percentageTakeRate}% for dish ${dish.name}');
             percentageChoices[dish.id] = item.percentageTakeRate ?? 100.0;
           } else {
+            debugPrint('QuotesScreen: Adding quantity: ${item.estimatedServings} for dish ${dish.name}');
             dishQuantities[dish.id] = item.estimatedServings?.toDouble() ?? 1.0;
           }
+        } else {
+          debugPrint('QuotesScreen: WARNING: Dish not found for quote item: ${item.dishName} (ID: ${item.dishId})');
         }
       }
+      
+      debugPrint('QuotesScreen: Selected dishes count: ${selectedDishes.length}');
+      debugPrint('QuotesScreen: Dish quantities: $dishQuantities');
+      debugPrint('QuotesScreen: Percentage choices: $percentageChoices');
 
+      debugPrint('QuotesScreen: Calling PdfServiceSimple.generateQuotePdf');
       final pdfFile = await PdfServiceSimple.generateQuotePdf(
         quote: quote,
         client: client,
@@ -48,9 +71,17 @@ class QuotesScreen extends StatelessWidget {
         dishQuantities: dishQuantities,
         percentageChoices: percentageChoices,
       );
+      debugPrint('QuotesScreen: PDF generated successfully, size: ${pdfFile.length} bytes');
+
+      // Save the PDF to a temporary file
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/quote_${quote.id}.pdf');
+      await tempFile.writeAsBytes(pdfFile);
+      debugPrint('QuotesScreen: PDF saved to: ${tempFile.path}');
 
       // Show options to share or open the PDF
       if (context.mounted) {
+        debugPrint('QuotesScreen: Showing dialog with options');
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
@@ -61,7 +92,7 @@ class QuotesScreen extends StatelessWidget {
                 onPressed: () {
                   Navigator.pop(context);
                   Share.shareXFiles(
-                    [XFile(pdfFile.path)],
+                    [XFile(tempFile.path)],
                     subject: 'Quote for ${client.clientName}',
                   );
                 },
@@ -70,7 +101,7 @@ class QuotesScreen extends StatelessWidget {
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  OpenFile.open(pdfFile.path);
+                  OpenFile.open(tempFile.path);
                 },
                 child: const Text('Open'),
               ),
@@ -83,6 +114,7 @@ class QuotesScreen extends StatelessWidget {
         );
       }
     } catch (e) {
+      debugPrint('QuotesScreen: Error generating PDF: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -126,19 +158,19 @@ class QuotesScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final quote = quotes[index];
               final client = appState.clients.firstWhere(
-                (c) => c.id == quote.clientId,
+                (c) => c.id.toString() == quote.clientId.toString(),
                 orElse: () => Client(
-                  id: quote.clientId,
+                  id: quote.clientId.toString(),
                   clientName: 'Unknown Client',
                 ),
               );
               final event = quote.eventId != null
                   ? appState.events.firstWhere(
-                      (e) => e.id == quote.eventId,
+                      (e) => e.id.toString() == quote.eventId.toString(),
                       orElse: () => Event(
-                        id: quote.eventId!,
+                        id: quote.eventId!.toString(),
                         eventName: 'Unknown Event',
-                        clientId: quote.clientId,
+                        clientId: quote.clientId.toString(),
                       ),
                     )
                   : null;
@@ -211,7 +243,7 @@ class QuotesScreen extends StatelessWidget {
                                 ),
                                 TextButton(
                                   onPressed: () {
-                                    appState.deleteQuote(quote.id);
+                                    appState.deleteQuote(quote.id.toString());
                                     Navigator.pop(context);
                                   },
                                   child: const Text('Delete'),

@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/client.dart';
 import '../models/event.dart';
 import '../models/quote.dart' hide QuoteItem;
@@ -102,8 +104,11 @@ class AppState extends ChangeNotifier {
       }
       
       try {
+        debugPrint('AppState: Loading dishes from database...');
         final dishesData = await _db.getDishes();
+        debugPrint('AppState: Loaded ${dishesData.length} dishes from database');
         _dishes = dishesData;
+        debugPrint('AppState: Dishes loaded successfully. First dish: ${_dishes.isNotEmpty ? _dishes.first.name : "none"}');
       } catch (e) {
         debugPrint('Error loading dishes: $e');
         _dishes = [];
@@ -366,7 +371,7 @@ class AppState extends ChangeNotifier {
         'id': id,
       });
       _quoteItems.add(updatedItem);
-      await recalculateQuoteTotals(item.quoteId);
+      await recalculateQuoteTotals(item.quoteId.toString());
       notifyListeners();
     } catch (e) {
       _error = 'Failed to add quote item: $e';
@@ -376,20 +381,33 @@ class AppState extends ChangeNotifier {
 
   Future<void> updateQuoteItem(QuoteItem item) async {
     if (!_db.isConnected) {
+      debugPrint('ERROR: Database not connected in AppState when trying to update quote item');
       _error = 'Database not connected';
       notifyListeners();
       return;
     }
 
     try {
+      debugPrint('AppState: Starting quote item update for ID: ${item.id}');
+      debugPrint('AppState: Quote item data: ${item.toMap()}');
+      
       await _db.updateQuoteItem(item);
+      
       final index = _quoteItems.indexWhere((qi) => qi.id == item.id);
+      debugPrint('AppState: Found quote item at index: $index');
+      
       if (index != -1) {
         _quoteItems[index] = item;
-        await recalculateQuoteTotals(item.quoteId);
+        debugPrint('AppState: Updated quote item in memory');
+        await recalculateQuoteTotals(item.quoteId.toString());
+        debugPrint('AppState: Recalculated quote totals');
         notifyListeners();
+        debugPrint('AppState: Notified listeners of changes');
+      } else {
+        debugPrint('WARNING: Quote item not found in memory list for ID: ${item.id}');
       }
     } catch (e) {
+      debugPrint('ERROR in AppState updateQuoteItem: $e');
       _error = 'Failed to update quote item: $e';
       notifyListeners();
     }
@@ -403,10 +421,10 @@ class AppState extends ChangeNotifier {
     }
 
     try {
-      final item = _quoteItems.firstWhere((qi) => qi.id == id);
+      final item = _quoteItems.firstWhere((qi) => qi.id.toString() == id);
       await _db.deleteQuoteItem(id);
-      _quoteItems.removeWhere((qi) => qi.id == id);
-      await recalculateQuoteTotals(item.quoteId);
+      _quoteItems.removeWhere((qi) => qi.id.toString() == id);
+      await recalculateQuoteTotals(item.quoteId.toString());
       notifyListeners();
     } catch (e) {
       _error = 'Failed to delete quote item: $e';
@@ -612,12 +630,12 @@ class AppState extends ChangeNotifier {
   }
 
   List<QuoteItem> getQuoteItemsForQuote(String quoteId) {
-    return _quoteItems.where((qi) => qi.quoteId == quoteId).toList();
+    return _quoteItems.where((qi) => qi.quoteId.toString() == quoteId).toList();
   }
 
   Dish? getDishForQuoteItem(QuoteItem item) {
     try {
-      return _dishes.firstWhere((d) => d.id == item.dishId);
+      return _dishes.firstWhere((d) => d.id == item.dishId.toString());
     } catch (e) {
       // No dish found with the given ID
       return null;
@@ -869,6 +887,56 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _error = 'Failed to add purchase order item: $e';
+      notifyListeners();
+    }
+  }
+  
+  // Quote Template Methods
+  Future<void> saveQuoteTemplate(Map<String, dynamic> template) async {
+    try {
+      // Get existing templates
+      final prefs = await SharedPreferences.getInstance();
+      final templatesJson = prefs.getString('quote_templates') ?? '[]';
+      final templates = jsonDecode(templatesJson) as List;
+      
+      // Add new template
+      templates.add(template);
+      
+      // Save updated templates
+      await prefs.setString('quote_templates', jsonEncode(templates));
+    } catch (e) {
+      _error = 'Failed to save quote template: $e';
+      notifyListeners();
+    }
+  }
+  
+  Future<List<Map<String, dynamic>>> getQuoteTemplates() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final templatesJson = prefs.getString('quote_templates') ?? '[]';
+      final templates = jsonDecode(templatesJson) as List;
+      return templates.cast<Map<String, dynamic>>();
+    } catch (e) {
+      _error = 'Failed to get quote templates: $e';
+      notifyListeners();
+      return [];
+    }
+  }
+  
+  Future<void> deleteQuoteTemplate(String templateName) async {
+    try {
+      // Get existing templates
+      final prefs = await SharedPreferences.getInstance();
+      final templatesJson = prefs.getString('quote_templates') ?? '[]';
+      final templates = jsonDecode(templatesJson) as List;
+      
+      // Remove template with matching name
+      templates.removeWhere((template) => template['name'] == templateName);
+      
+      // Save updated templates
+      await prefs.setString('quote_templates', jsonEncode(templates));
+    } catch (e) {
+      _error = 'Failed to delete quote template: $e';
       notifyListeners();
     }
   }

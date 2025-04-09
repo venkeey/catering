@@ -88,4 +88,12 @@ class DatabaseHelper {
     }
     return null;
   }
+
+  static BigInt? bigIntValue(dynamic value) {
+    if (value == null) return null;
+    if (value is BigInt) return value;
+    if (value is int) return BigInt.from(value);
+    if (value is String) return BigInt.tryParse(value);
+    return null;
+  }
 } 

@@ -15,6 +15,16 @@ class Dish {
   final bool isActive;
   final Map<String, double> ingredients;
   final DateTime createdAt;
+  final double calories;
+  final double protein;
+  final double carbohydrates;
+  final double fat;
+  final double fiber;
+  final double sugar;
+  final double sodium;
+  final Map<String, double> vitamins;
+  final Map<String, double> minerals;
+  final List<String> allergens;
 
   Dish({
     String? id,
@@ -31,12 +41,25 @@ class Dish {
     bool? isActive,
     Map<String, double>? ingredients,
     DateTime? createdAt,
+    this.calories = 0.0,
+    this.protein = 0.0,
+    this.carbohydrates = 0.0,
+    this.fat = 0.0,
+    this.fiber = 0.0,
+    this.sugar = 0.0,
+    this.sodium = 0.0,
+    Map<String, double>? vitamins,
+    Map<String, double>? minerals,
+    List<String>? allergens,
   })  : id = id ?? const Uuid().v4(),
         dietaryTags = dietaryTags ?? [],
         itemType = itemType ?? 'Standard',
         isActive = isActive ?? true,
         ingredients = ingredients ?? {},
-        createdAt = createdAt ?? DateTime.now();
+        createdAt = createdAt ?? DateTime.now(),
+        vitamins = vitamins ?? {},
+        minerals = minerals ?? {},
+        allergens = allergens ?? [];
 
   Dish copyWith({
     String? name,
@@ -51,6 +74,16 @@ class Dish {
     String? itemType,
     bool? isActive,
     Map<String, double>? ingredients,
+    double? calories,
+    double? protein,
+    double? carbohydrates,
+    double? fat,
+    double? fiber,
+    double? sugar,
+    double? sodium,
+    Map<String, double>? vitamins,
+    Map<String, double>? minerals,
+    List<String>? allergens,
   }) {
     return Dish(
       id: id,
@@ -66,6 +99,16 @@ class Dish {
       itemType: itemType ?? this.itemType,
       isActive: isActive ?? this.isActive,
       ingredients: ingredients ?? this.ingredients,
+      calories: calories ?? this.calories,
+      protein: protein ?? this.protein,
+      carbohydrates: carbohydrates ?? this.carbohydrates,
+      fat: fat ?? this.fat,
+      fiber: fiber ?? this.fiber,
+      sugar: sugar ?? this.sugar,
+      sodium: sodium ?? this.sodium,
+      vitamins: vitamins ?? this.vitamins,
+      minerals: minerals ?? this.minerals,
+      allergens: allergens ?? this.allergens,
       createdAt: createdAt,
     );
   }
@@ -86,6 +129,16 @@ class Dish {
       'isActive': isActive ? 1 : 0,
       'ingredients': ingredients.toString(), // TODO: Proper serialization
       'createdAt': createdAt.toIso8601String(),
+      'calories': calories,
+      'protein': protein,
+      'carbohydrates': carbohydrates,
+      'fat': fat,
+      'fiber': fiber,
+      'sugar': sugar,
+      'sodium': sodium,
+      'vitamins': vitamins.toString(), // TODO: Proper serialization
+      'minerals': minerals.toString(), // TODO: Proper serialization
+      'allergens': allergens.join(','),
     };
   }
 
@@ -104,7 +157,21 @@ class Dish {
       itemType: map['itemType'] ?? 'Standard',
       isActive: map['isActive'] == 1 || map['isActive'] == '1' || map['isActive'] == true,
       ingredients: {}, // TODO: Proper deserialization
+      calories: double.tryParse(map['calories']?.toString() ?? '0') ?? 0.0,
+      protein: double.tryParse(map['protein']?.toString() ?? '0') ?? 0.0,
+      carbohydrates: double.tryParse(map['carbohydrates']?.toString() ?? '0') ?? 0.0,
+      fat: double.tryParse(map['fat']?.toString() ?? '0') ?? 0.0,
+      fiber: double.tryParse(map['fiber']?.toString() ?? '0') ?? 0.0,
+      sugar: double.tryParse(map['sugar']?.toString() ?? '0') ?? 0.0,
+      sodium: double.tryParse(map['sodium']?.toString() ?? '0') ?? 0.0,
+      vitamins: {}, // TODO: Proper deserialization
+      minerals: {}, // TODO: Proper deserialization
+      allergens: map['allergens'] != null ? map['allergens'].toString().split(',') : [],
       createdAt: map['createdAt'] != null ? DateTime.parse(map['createdAt'].toString()) : null,
     );
+  }
+
+  bool meetsDietaryRestriction(String restriction) {
+    return dietaryTags.contains(restriction.toLowerCase());
   }
 } 

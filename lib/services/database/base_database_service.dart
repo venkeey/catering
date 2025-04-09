@@ -254,6 +254,9 @@ class BaseDatabaseService {
         item_id INT AUTO_INCREMENT PRIMARY KEY,
         quote_id INT NOT NULL,
         dish_id INT NOT NULL,
+        quantity DECIMAL(10,2) NOT NULL,
+        unit_price DECIMAL(10,2) NOT NULL,
+        total_price DECIMAL(10,2) NOT NULL,
         quoted_portion_size_grams DECIMAL(10,2),
         quoted_base_food_cost_per_serving DECIMAL(10,2),
         percentage_take_rate DECIMAL(5,2),
@@ -265,6 +268,18 @@ class BaseDatabaseService {
         FOREIGN KEY (dish_id) REFERENCES dishes(dish_id) ON DELETE CASCADE
       )
     ''');
+
+    // Add missing columns if they don't exist
+    try {
+      await _connection!.execute('''
+        ALTER TABLE quote_items
+        ADD COLUMN IF NOT EXISTS quantity DECIMAL(10,2) NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS unit_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS total_price DECIMAL(10,2) NOT NULL DEFAULT 0
+      ''');
+    } catch (e) {
+      debugPrint('Error adding columns to quote_items table: $e');
+    }
     
     // Create inventory_items table
     await _connection!.execute('''
@@ -487,19 +502,31 @@ class BaseDatabaseService {
   }
 
   // Helper method to execute a query with parameters
-  Future<IResultSet> executeQuery(String query, [Map<String, dynamic>? params]) async {
-    if (!_isConnected) {
+  Future<IResultSet> executeQuery(String query, [Map<String, dynamic>? parameters]) async {
+    if (!isConnected) {
+      debugPrint('ERROR: Attempted to execute query while database is not connected');
       throw Exception('Database not connected');
     }
 
     try {
-      if (params != null) {
-        return await _connection!.execute(query, params);
-      } else {
-        return await _connection!.execute(query);
+      debugPrint('Executing SQL query: $query');
+      if (parameters != null) {
+        debugPrint('Query parameters: $parameters');
       }
+      
+      final results = await _connection!.execute(query, parameters);
+      
+      debugPrint('Query executed successfully');
+      debugPrint('Affected rows: ${results.affectedRows}');
+      debugPrint('Last insert ID: ${results.lastInsertID}');
+      
+      return results;
     } catch (e) {
-      debugPrint('Error executing query: $e');
+      debugPrint('ERROR executing SQL query: $e');
+      debugPrint('Query was: $query');
+      if (parameters != null) {
+        debugPrint('Parameters were: $parameters');
+      }
       rethrow;
     }
   }
