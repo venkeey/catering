@@ -22,10 +22,23 @@ class QuotesScreen extends StatelessWidget {
           ? appState.events.firstWhere((e) => e.id == quote.eventId)
           : null;
       
-      // TODO: Get selected dishes and quantities from quote items
+      // Get selected dishes and quantities from quote items
+      final quoteItems = appState.getQuoteItemsForQuote(quote.id);
       final selectedDishes = <Dish>[];
       final dishQuantities = <String, double>{};
       final percentageChoices = <String, double>{};
+      
+      for (final item in quoteItems) {
+        final dish = appState.getDishForQuoteItem(item);
+        if (dish != null) {
+          selectedDishes.add(dish);
+          if (dish.itemType == 'PercentageChoice') {
+            percentageChoices[dish.id] = item.percentageTakeRate ?? 100.0;
+          } else {
+            dishQuantities[dish.id] = item.estimatedServings?.toDouble() ?? 1.0;
+          }
+        }
+      }
 
       final pdfFile = await PdfServiceSimple.generateQuotePdf(
         quote: quote,

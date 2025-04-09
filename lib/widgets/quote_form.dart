@@ -70,6 +70,15 @@ class _QuoteFormState extends State<QuoteForm> {
     _overheadPercentageController = TextEditingController(
       text: widget.quote?.overheadPercentage.toString() ?? '30.0',
     );
+    
+    // Add listeners to update UI when values change
+    _totalGuestCountController.addListener(() => setState(() {}));
+    _guestsMaleController.addListener(() => setState(() {}));
+    _guestsFemaleController.addListener(() => setState(() {}));
+    _guestsElderlyController.addListener(() => setState(() {}));
+    _guestsYouthController.addListener(() => setState(() {}));
+    _guestsChildController.addListener(() => setState(() {}));
+    _overheadPercentageController.addListener(() => setState(() {}));
     _notesController = TextEditingController(text: widget.quote?.notes ?? '');
     _termsAndConditionsController = TextEditingController(
       text: widget.quote?.termsAndConditions ?? '',
@@ -136,7 +145,14 @@ class _QuoteFormState extends State<QuoteForm> {
         _selectedDishes.remove(dishId);
         _percentageChoiceDishes.remove(dishId);
       } else {
-        _selectedDishes[dishId] = 1.0; // Default quantity
+        final appState = Provider.of<AppState>(context, listen: false);
+        final dish = appState.dishes.firstWhere((d) => d.id == dishId);
+        
+        if (dish.itemType == 'PercentageChoice') {
+          _percentageChoiceDishes[dishId] = 100.0; // Default percentage
+        } else {
+          _selectedDishes[dishId] = 1.0; // Default quantity
+        }
       }
     });
   }
@@ -811,6 +827,22 @@ class _QuoteFormState extends State<QuoteForm> {
         ),
       ),
       actions: [
+        Consumer<AppState>(
+          builder: (context, appState, child) {
+            final totalFoodCost = _calculateTotalFoodCost();
+            final overheadPercentage = double.tryParse(_overheadPercentageController.text) ?? 30.0;
+            final overheadCost = totalFoodCost * (overheadPercentage / 100);
+            final grandTotal = totalFoodCost + overheadCost;
+            
+            return Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: Text(
+                'Total: Rs. ${grandTotal.toStringAsFixed(2)}',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            );
+          },
+        ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
